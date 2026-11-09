@@ -267,6 +267,8 @@ void handle_client(int fd,Sqlite& db,int port,const fs::path& web_root,
       else if(path=="/api/roots")output=json_roots(db);
       else if(path=="/api/relations")output=json_relations(db);
       else if(path=="/api/todos")output=json_todos(db);
+      else if(path=="/api/assistant/insights")output=json_continuity_insights(db, value(q,"project"));
+      else if(path=="/api/assistant/jobs")output=json_continuity_jobs(db);
       else {json_error(fd,404,"route not found");return;}
     } else {
       if(path=="/api/integrations/configure"){

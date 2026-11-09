@@ -237,6 +237,25 @@ void initialize(Sqlite& db) {
       from_project INTEGER NOT NULL REFERENCES projects(id),
       to_project INTEGER NOT NULL REFERENCES projects(id),
       label TEXT NOT NULL, state TEXT NOT NULL CHECK(state IN ('candidate','user_confirmed')));
+    CREATE TABLE IF NOT EXISTS continuity_jobs(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_id INTEGER NOT NULL REFERENCES events(id),
+      root_id INTEGER NOT NULL REFERENCES roots(id),
+      path TEXT NOT NULL, kind TEXT NOT NULL,
+      state TEXT NOT NULL CHECK(state IN ('pending','processing','completed','failed')),
+      attempts INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+      error_message TEXT);
+    CREATE INDEX IF NOT EXISTS jobs_state ON continuity_jobs(state, id ASC);
+    CREATE TABLE IF NOT EXISTS continuity_insights(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      job_id INTEGER REFERENCES continuity_jobs(id),
+      event_id INTEGER NOT NULL REFERENCES events(id),
+      project_id INTEGER NOT NULL REFERENCES projects(id),
+      document_path TEXT NOT NULL, summary TEXT NOT NULL,
+      gaps_json TEXT NOT NULL, model TEXT NOT NULL,
+      created_at TEXT NOT NULL, event_hash TEXT NOT NULL);
+    CREATE INDEX IF NOT EXISTS insights_project ON continuity_insights(project_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS events_occurred ON events(occurred_at DESC,id DESC);
     CREATE INDEX IF NOT EXISTS events_project ON events(project_id,occurred_at DESC);
   )SQL");
@@ -344,7 +363,14 @@ int scan_root(Sqlite& db,const Root& root) {
         e.source_type="file";e.source_ref=entry.path().string();
         e.occurred_at=utc_now();e.evidence_state="observed";
         e.dedupe_key="file:"+std::to_string(root.id)+":"+relative+":"+std::to_string(revision);
-        if(append_event(db,e)>0)++appended;
+        const auto new_id=append_event(db,e);
+        if(new_id>0){
+          ++appended;
+          Stmt job(db.db,R"SQL(INSERT INTO continuity_jobs(event_id,root_id,path,kind,state,created_at,updated_at)
+                   VALUES(?,?,?,?,'pending',?,?))SQL");
+          job.bind(1,new_id);job.bind(2,root.id);job.bind(3,relative);job.bind(4,e.kind);
+          job.bind(5,e.occurred_at);job.bind(6,e.occurred_at);job.step();
+        }
       }
       Stmt up(db.db,R"SQL(INSERT INTO file_snapshots(root_id,path,hash,bytes,revision,active,seen_scan)
         VALUES(?,?,?,?,?,1,?) ON CONFLICT(root_id,path) DO UPDATE SET
@@ -524,6 +550,42 @@ std::string json_todos(Sqlite& db){
       ",\"actor\":"+json_string(s.str(5).starts_with("llm:mcp:")?"llm":"user")+
       ",\"occurred_at\":"+json_string(s.str(4))+"}";}
   return out+"]";
+}
+std::string json_continuity_insights(Sqlite& db, const std::string& project) {
+  std::string sql = "SELECT i.id, i.event_id, p.name, i.document_path, i.summary, i.gaps_json, i.model, i.created_at, i.event_hash "
+                    "FROM continuity_insights i JOIN projects p ON p.id=i.project_id ";
+  if(!project.empty()) sql += "WHERE p.name=? ";
+  sql += "ORDER BY i.id DESC LIMIT 50";
+  Stmt s(db.db, sql);
+  if(!project.empty()) s.bind(1, project);
+  std::string out = "[";
+  bool first = true;
+  while(s.step() == SQLITE_ROW) {
+    if(!first) out += ",";
+    first = false;
+    out += "{\"id\":" + std::to_string(s.number(0)) +
+           ",\"event_id\":" + std::to_string(s.number(1)) +
+           ",\"project\":" + json_string(s.str(2)) +
+           ",\"document_path\":" + json_string(s.str(3)) +
+           ",\"summary\":" + json_string(s.str(4)) +
+           ",\"gaps\":" + (s.str(5).empty() ? "[]" : s.str(5)) +
+           ",\"model\":" + json_string(s.str(6)) +
+           ",\"created_at\":" + json_string(s.str(7)) +
+           ",\"event_hash\":" + json_string(s.str(8)) + "}";
+  }
+  out += "]";
+  return out;
+}
+std::string json_continuity_jobs(Sqlite& db) {
+  Stmt s(db.db, "SELECT state, count(*) FROM continuity_jobs GROUP BY state");
+  std::map<std::string, int64_t> counts;
+  while(s.step() == SQLITE_ROW) {
+    counts[s.str(0)] = s.number(1);
+  }
+  return "{\"pending\":" + std::to_string(counts["pending"]) +
+         ",\"processing\":" + std::to_string(counts["processing"]) +
+         ",\"completed\":" + std::to_string(counts["completed"]) +
+         ",\"failed\":" + std::to_string(counts["failed"]) + "}";
 }
 std::string json_stats(Sqlite& db){
   Stmt s(db.db,"SELECT (SELECT COUNT(*) FROM projects),(SELECT COUNT(*) FROM roots),"

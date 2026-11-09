@@ -177,9 +177,46 @@ async function refreshRoots(){
     for(const r of list)target.append(card(r.project,r.path,[[r.kind]],'','','⌁'));
   }
 }
+async function refreshInsights(){
+  try{
+    const list=await api('/api/assistant/insights');
+    const card=$('autonomousInsightCard');
+    if(!card)return;
+    if(!list||!list.length){card.hidden=true;return;}
+    const latest=list[0];
+    card.hidden=false;
+    $('insightDocTitle').textContent=`${latest.project} · ${latest.document_path}`;
+    $('insightSummary').textContent=latest.summary;
+    const gapsContainer=$('insightGapsList');
+    gapsContainer.replaceChildren();
+    const gaps=Array.isArray(latest.gaps)?latest.gaps:[];
+    if(gaps.length){
+      const ul=document.createElement('ul');
+      for(const gap of gaps){
+        const li=document.createElement('li');li.textContent=gap;ul.appendChild(li);
+      }
+      gapsContainer.appendChild(ul);
+      $('insightOpportunity').textContent=gaps[0];
+      $('btnAdoptGap').onclick=()=>{
+        openNote('todo');
+        const form=$('noteForm');
+        form.elements.project.value=latest.project;
+        form.elements.title.value=gaps[0].slice(0,180);
+        form.elements.reference.value=`lac:event:${latest.event_id}`;
+        form.elements.body.value=`Oportunidade identificada na análise autônoma de ${latest.document_path}:\n\n${latest.summary}`;
+      };
+    }else{
+      $('insightOpportunity').textContent='Síntese concluída sem lacunas críticas aparentes.';
+      $('btnAdoptGap').onclick=()=>openNote('note');
+    }
+    $('insightModelBadge').textContent=latest.model||'qwen2.5:7b';
+    $('insightTimeBadge').textContent=(latest.created_at||'').slice(11,16);
+  }catch(e){}
+}
 async function refresh(){
   const projects=await refreshProjectsOptions();
   await refreshStats();
+  if(activeView==='overview')await refreshInsights();
   switch(activeView){
     case 'overview':case 'timeline':await refreshEvents();break;
     case 'events':await refreshEventListing();break;

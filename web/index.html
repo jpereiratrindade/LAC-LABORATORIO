@@ -142,6 +142,25 @@
           <div class="pulse-week" id="pulseWeekBars" title="Ritmo de atividade dos últimos 7 dias">
           </div>
         </div>
+
+        <!-- Painel de Descoberta e Continuidade Autônoma (ADR-005) -->
+        <div id="autonomousInsightCard" class="pulse-card surface insight-card" hidden>
+          <div class="pulse-left">
+            <div class="pulse-badge"><span class="pulse-dot insight-dot"></span> ⚡ DESCOBERTA PREPARADA · CONTINUIDADE AUTÔNOMA</div>
+            <h3 id="insightDocTitle">Documento</h3>
+            <p id="insightSummary">Carregando síntese...</p>
+            <div id="insightGapsList" class="insight-gaps"></div>
+          </div>
+          <div class="pulse-next">
+            <span class="pulse-label">🎯 OPORTUNIDADE DE INVESTIGAÇÃO:</span>
+            <strong id="insightOpportunity">Examinar relações e lacunas conceituais</strong>
+            <button id="btnAdoptGap" type="button" class="primary compact insight-btn">Adotar como pendência</button>
+          </div>
+          <div class="pulse-week insight-meta">
+            <span id="insightModelBadge" class="eyebrow insight-model">Ollama local</span>
+            <span id="insightTimeBadge" class="insight-time">agora</span>
+          </div>
+        </div>
       </div>
       <div id="notice" role="status" aria-live="polite" class="notice" hidden></div>
       <div id="dashboardBody" class="dashboard-body">

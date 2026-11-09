@@ -45,6 +45,8 @@ std::string json_relations(Sqlite& db);
 std::string json_stats(Sqlite& db);
 std::string json_events(Sqlite& db, const std::map<std::string,std::string>& query);
 std::string json_todos(Sqlite& db);
+std::string json_continuity_insights(Sqlite& db, const std::string& project = "");
+std::string json_continuity_jobs(Sqlite& db);
 std::string markdown_report(Sqlite& db, const std::map<std::string,std::string>& query);
 void write_anchor(Sqlite& db, const fs::path& path);
 bool verify_anchor(Sqlite& db, const fs::path& path, std::string& error);

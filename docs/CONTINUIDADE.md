@@ -34,10 +34,17 @@ Execução desta etapa ocorreu sobre `c022e8e`. Verificar Git na retomada.
 - T02: protótipo visual independente mantido em `prototypes/laboratorio/`; a imposição
   do mapa cru no frontend operacional foi revertida a pedido do usuário, restaurando
   a identidade visual superior e o propósito original (Omni-bar, Pulso e Guia).
-- T03: em andamento — implementação do primeiro ciclo autônomo de continuidade
-  documental e relacional (ADR-005: fila durável de jobs e worker em background).
+- T03: concluída a Entrega 1 (ADR-005: Motor de Continuidade Autônomo). Fila durável
+  `continuity_jobs`, worker `lac_continuity_worker.py` (serviço `lac-worker.service`),
+  persistência em `continuity_insights` e exibição no painel web.
 - T04: concluída — adaptador isolado com testes simulados e reais iniciais.
-- T05 a T12: pendentes.
+- T05 a T12: pendentes (próximo passo: Entrega 2 — Memória e Conexões Relacionais).
+
+O primeiro teste de verdade foi executado com sucesso: a alteração de um documento
+Markdown autorizado (`TESSITURA/docs/ADR-004-GRAFO-ARGUMENTATIVO.md`) gerou
+automaticamente um job durável, processado pelo worker com extração de texto e inferência
+no Ollama (`qwen2.5:7b`), persistindo a síntese e as lacunas conceituais e exibindo
+o card de Descoberta Preparada no painel web sem qualquer intervenção humana manual.
 
 O frontend operacional restabeleceu a interface limpa e contemporânea: Omni-composer,
 painel de pulso, trilha de integridade e linha do tempo com filtros. A observação e
