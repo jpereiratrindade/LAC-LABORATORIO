@@ -51,6 +51,7 @@ Execução desta etapa ocorreu sobre `c022e8e`. Verificar Git na retomada.
   3. Nova visão de primeira classe **Acervo & Documentos** (`#view-corpus`) com busca em tempo real, filtros de projeto e formato (.tex, .md, .pdf, .txt), cards com síntese de continuidade e leitura textual imediata (`#docDialog`).
   4. Filtro de acontecimentos substantivos na Linha do Tempo (`kind=substantive`), eliminando o ruído de centenas de arquivos brutos e destacando decisões, notas e marcos.
   5. Drenagem e saneamento da fila em lote de raízes volumosas (`Manuscript/Relatorio`), preservando 202 sínteses prévias e mantendo o motor responsivo.
+  6. Roteamento do frontend (`viewLabels['corpus']`) corrigido para navegação fluida via sidebar e hash change.
 - T07, T10 a T12: em andamento / pendentes (próximo passo: agrupamento temporal de rajadas e reconstrução de trajetórias).
 
 As entregas foram validadas ponta a ponta:

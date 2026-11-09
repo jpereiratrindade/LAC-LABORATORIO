@@ -9,7 +9,7 @@ const $create = (tag, css = '', value) => {
 };
 let activeView = 'overview';
 let debounce;
-const viewLabels = {overview:'Visão geral', timeline:'Linha do tempo', projects:'Projetos',
+const viewLabels = {overview:'Visão geral', timeline:'Linha do tempo', corpus:'Acervo & Documentos', projects:'Projetos',
   events:'Eventos', relations:'Relações', sources:'Fontes', todos:'Pendências',
   guide:'Guia de Uso & Metodologia',
   observation:'Observação', integrity:'Integridade', reports:'Relatórios',
