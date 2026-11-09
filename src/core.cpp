@@ -139,9 +139,7 @@ std::string exec_git(const fs::path& path) {
 }
 
 bool supported_doc(const fs::path& p) {
-  static const std::set<std::string> exts={".md",".tex",".txt",".pdf",".docx",".xlsx",
-    ".csv",".tsv",".ods",".odt",".rst",".adoc",".json",".yaml",".yml",".pptx",
-    ".zip",".tar",".gz",".patch",".diff",".sh"};
+  static const std::set<std::string> exts={".pdf",".md",".txt",".tex"};
   std::string ext=p.extension().string();
   std::transform(ext.begin(),ext.end(),ext.begin(),[](unsigned char c){return static_cast<char>(std::tolower(c));});
   return exts.contains(ext);

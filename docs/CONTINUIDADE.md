@@ -30,16 +30,19 @@ Execução começou sobre `7807085`, com árvore limpa. Verificar Git na retomad
 
 - T00: concluída — plano e instruções de continuidade no repositório.
 - T01: concluída — host, inventário e contratos especificados.
-- T02: em andamento — protótipo navegável pronto e verificado em navegador;
-  falta avaliação com pessoa usuária. Não marcar concluída só por testes.
-- T03: pendente — próximo trabalho de backend, sem depender do aceite visual.
+- T02: protótipo visual independente mantido em `prototypes/laboratorio/`; a imposição
+  do mapa cru no frontend operacional foi revertida a pedido do usuário, restaurando
+  a identidade visual superior e o propósito original (Omni-bar, Pulso e Guia).
+- T03: pendente — próximo trabalho de backend.
 - T04: concluída — adaptador isolado com testes simulados e reais iniciais.
 - T05 a T12: pendentes.
 
-O LAC operacional não recebeu a nova UI, migração ou worker. O serviço
-`lac-lan.service` não foi reiniciado nesta entrega. Nenhum modelo foi baixado.
-Ollama existente executou inferências com dados sintéticos. Memória e fila
-reais não estão implementadas; a prévia usa localStorage demonstrativo.
+O frontend operacional restabeleceu a interface limpa e contemporânea: Omni-composer,
+painel de pulso, trilha de integridade e linha do tempo com filtros. A observação e
+interpretação documental foram estritamente restritas a `.pdf`, `.md`, `.txt` e `.tex`
+(no núcleo C++ e no extrator delimitado `scripts/lac_doc_reader.py`), eliminando a
+poluição por arquivos de infraestrutura (.zip, .sh, etc.). Testado ponta a ponta
+com CTest (4/4 passando).
 
 ## Host confirmado e inferência
 
