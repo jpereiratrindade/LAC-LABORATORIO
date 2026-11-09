@@ -64,4 +64,9 @@ int64_t record_note(Sqlite& db, const std::string& project, const std::string& k
 int64_t close_todo(Sqlite& db, int64_t todo_id, bool llm = false);
 int64_t record_relation(Sqlite& db, const std::string& from, const std::string& to,
                         const std::string& label, const std::string& state, bool llm = false);
+int64_t record_feedback(Sqlite& db, int64_t insight_id, const std::string& project,
+                        const std::string& target_type, const std::string& target_ref,
+                        const std::string& decision, const std::string& reason = "",
+                        const std::string& actor = "user");
+std::string json_continuity_feedback(Sqlite& db, const std::string& project = "");
 } // namespace lac

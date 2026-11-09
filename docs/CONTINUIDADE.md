@@ -41,15 +41,20 @@ Execução desta etapa ocorreu sobre `c022e8e`. Verificar Git na retomada.
   Percepção relacional autônoma (MPRR) com sugestão de conexões candidatas e adoção com 1 clique.
   Navegação entre múltiplos insights preparados no painel da Visão Geral.
 - T04: concluída — adaptador isolado com testes simulados e reais iniciais.
-- T05 a T12: pendentes (próximo passo: T05/T06 — feedback inspecionável e trilhas de trajetória).
+- T08/T09: concluída a camada de Feedback e Retificação Inspecionável (Princípio REA).
+  Tabela durável `continuity_feedback`, endpoints `/api/assistant/feedback` (GET e POST),
+  ações de adoção e descarte com 1 clique de descobertas e relações propostas no frontend,
+  e filtro de contexto no worker para que relações dispensadas pela equipe não sejam re-propostas.
+- T05, T06, T07, T10 a T12: em andamento / pendentes (próximo passo: agregação de rajadas e reconstrução de trajetórias).
 
-As entregas 1 e 2 foram validadas ponta a ponta:
+As entregas foram validadas ponta a ponta:
 1. Extração segura e delimitada de texto para `.md`, `.tex`, `.pdf` e `.txt` com fronteira estrita às raízes autorizadas.
 2. O endpoint `/api/documents/read` permite inspecionar diretamente qualquer documento observado na linha do tempo ou nos cards de insight através de um modal com metadados, hash SHA-256 e texto completo.
-3. O worker autônomo agora mapeia ressonâncias conceituais entre projetos ativos (ex: TESSITURA ↔ EVIDA / lac-laboratorio), gerando hipóteses relacionais candidatas que o usuário pode adotar com um clique.
-4. O frontend suporta múltiplos insights preparados com paginação direta `[ < ] [ > ]`.
-5. Mensagens de erro de validação (ex: fontes inexistentes) foram humanizadas no backend.
-6. 100% dos testes CTest (5/5) e Playwright/Chromium passaram sem erros de CSP ou console.
+3. O worker autônomo agora mapeia ressonâncias conceituais entre projetos ativos (ex: TESSITURA ↔ EVIDA / lac-laboratorio), gerando hipóteses relacionais candidatas que o usuário pode adotar ou descartar.
+4. O descarte de propostas é registrado de forma rastreável em `continuity_feedback` (REA), impedindo reincidência de sugestões inadequadas sem apagar o histórico factual.
+5. O frontend suporta múltiplos insights preparados com paginação direta `[ < ] [ > ]` e descarte com 1 clique.
+6. Mensagens de erro de validação (ex: fontes inexistentes) foram humanizadas no backend.
+7. 100% dos testes CTest (5/5) e Playwright/Chromium passaram sem erros de CSP ou console.
 
 ## Host confirmado e inferência
 

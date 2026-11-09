@@ -116,10 +116,47 @@ class ContinuityWorkerTests(unittest.TestCase):
         conn.execute("DELETE FROM continuity_jobs")
         conn.commit()
         conn.close()
-        
+
         results = worker.run_all_pending()
         self.assertEqual(0, len(results))
         mock_subproc.assert_not_called()
+
+    @patch('subprocess.run')
+    def test_worker_respects_dismissed_feedback_rea(self, mock_subproc):
+        mock_subproc.return_value = MagicMock(
+            returncode=0,
+            stdout=json.dumps({
+                'result': {
+                    'summary': 'O TESSITURA dialoga sobre o grafo argumentativo.',
+                    'gaps': []
+                }
+            })
+        )
+        conn = sqlite3.connect(self.db_path)
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS continuity_feedback(
+                id INTEGER PRIMARY KEY AUTOINCREMENT, insight_id INTEGER,
+                project_id INTEGER, target_type TEXT, target_ref TEXT,
+                decision TEXT, reason TEXT, actor TEXT, created_at TEXT
+            );
+            INSERT INTO continuity_feedback(insight_id, project_id, target_type, target_ref, decision, reason, actor, created_at)
+            VALUES(NULL, 1, 'relation', 'EVIDA', 'dismissed', 'Fora do escopo', 'user', '2026-11-09T16:00:00Z');
+            UPDATE continuity_jobs SET state = 'pending', attempts = 0 WHERE id = 1;
+        """)
+        conn.commit()
+        conn.close()
+
+        worker = ContinuityWorker(db_path=self.db_path, model='test-model')
+        results = worker.run_all_pending()
+        self.assertEqual(1, len(results))
+
+        conn = sqlite3.connect(self.db_path)
+        cur = conn.cursor()
+        insight = cur.execute("SELECT relations_json FROM continuity_insights ORDER BY id DESC LIMIT 1").fetchone()
+        relations = json.loads(insight[0])
+        targets = [r['target_project'] for r in relations]
+        self.assertNotIn('EVIDA', targets)
+        conn.close()
 
 
 if __name__ == '__main__':

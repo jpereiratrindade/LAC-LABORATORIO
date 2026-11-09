@@ -134,6 +134,16 @@ class ContinuityWorker:
             summary = result.get('summary', 'Síntese não gerada.')
             gaps_json = json.dumps(result.get('gaps', []), ensure_ascii=False)
 
+            # Query dismissed relation targets (REA - Adaptive Epistemic Reflexivity)
+            try:
+                cur.execute("""
+                    SELECT target_ref FROM continuity_feedback
+                    WHERE project_id = ? AND target_type = 'relation' AND decision = 'dismissed'
+                """, (job['project_id'],))
+                dismissed_targets = {row[0] for row in cur.fetchall()}
+            except Exception:
+                dismissed_targets = set()
+
             # Detect candidate cross-project relations (MPRR)
             cur.execute("SELECT id, name FROM projects WHERE id != ?", (job['project_id'],))
             other_projects = cur.fetchall()
@@ -144,6 +154,8 @@ class ContinuityWorker:
 
             for other in other_projects:
                 target_name = other['name']
+                if target_name in dismissed_targets:
+                    continue
                 if target_name.lower() in text_lower or target_name.lower() in summary_lower:
                     candidate_relations.append({
                         'target_project': target_name,

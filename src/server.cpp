@@ -269,6 +269,7 @@ void handle_client(int fd,Sqlite& db,int port,const fs::path& web_root,
       else if(path=="/api/todos")output=json_todos(db);
       else if(path=="/api/assistant/insights")output=json_continuity_insights(db, value(q,"project"));
       else if(path=="/api/assistant/jobs")output=json_continuity_jobs(db);
+      else if(path=="/api/assistant/feedback")output=json_continuity_feedback(db, value(q,"project"));
       else if(path=="/api/documents/read"){
         std::string authorized_roots;
         for(const auto& r: roots(db)){
@@ -299,6 +300,13 @@ void handle_client(int fd,Sqlite& db,int port,const fs::path& web_root,
         output="{\"id\":"+std::to_string(id)+"}";status=201;
       }else if(path=="/api/relations"){
         const auto id=record_relation(db,value(q,"from"),value(q,"to"),value(q,"label"),value(q,"state"),llm);
+        output="{\"id\":"+std::to_string(id)+"}";status=201;
+      }else if(path=="/api/assistant/feedback"){
+        int64_t ins_id = 0;
+        try { if(!value(q,"insight_id").empty()) ins_id = std::stoll(value(q,"insight_id")); } catch(...) {}
+        const auto id=record_feedback(db, ins_id, value(q,"project"), value(q,"target_type"),
+                                      value(q,"target_ref"), value(q,"decision"), value(q,"reason"),
+                                      llm ? "llm" : "user");
         output="{\"id\":"+std::to_string(id)+"}";status=201;
       }else {json_error(fd,404,"route not found");return;}
     }

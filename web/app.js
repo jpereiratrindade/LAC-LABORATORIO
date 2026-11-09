@@ -213,6 +213,20 @@ function displayInsight(idx){
     $('btnAdoptGap').onclick=()=>openNote('note');
   }
   $('btnViewInsightDoc').onclick=()=>inspectDocument(item.document_path,item.project,item.summary);
+  $('btnDismissInsight').onclick=async()=>{
+    try{
+      await api('/api/assistant/feedback',{
+        insight_id:String(item.id),
+        project:item.project,
+        target_type:'insight',
+        target_ref:item.document_path,
+        decision:'dismissed',
+        reason:'Dispensado na visão geral pelo pesquisador'
+      });
+      showNotice('Descoberta dispensada e registrada na memória adaptativa (REA).');
+      await refreshInsights();
+    }catch(e){showNotice(e.message,true);}
+  };
   $('insightModelBadge').textContent=item.model||'qwen2.5:7b';
   $('insightTimeBadge').textContent=(item.created_at||'').slice(11,16);
 
@@ -229,11 +243,34 @@ function displayInsight(idx){
       adoptRelBtn.onclick=async()=>{
         try{
           await api('/api/relations',{from:item.project,to:rel.target_project,label:rel.label,state:'candidate'});
+          await api('/api/assistant/feedback',{
+            insight_id:String(item.id),
+            project:item.project,
+            target_type:'relation',
+            target_ref:rel.target_project,
+            decision:'adopted'
+          });
           showNotice('Relação candidata registrada no histórico.');
           await refresh();
         }catch(e){showNotice(e.message,true);}
       };
-      row.append(adoptRelBtn);
+      const dismissRelBtn=$create('button','preset-pill ghost','Dispensar');
+      dismissRelBtn.type='button';
+      dismissRelBtn.onclick=async()=>{
+        try{
+          await api('/api/assistant/feedback',{
+            insight_id:String(item.id),
+            project:item.project,
+            target_type:'relation',
+            target_ref:rel.target_project,
+            decision:'dismissed',
+            reason:`Relação com ${rel.target_project} dispensada pelo pesquisador`
+          });
+          showNotice(`Relação com ${rel.target_project} dispensada (REA).`);
+          row.remove();
+        }catch(e){showNotice(e.message,true);}
+      };
+      row.append(adoptRelBtn, dismissRelBtn);
       relContainer.append(row);
     }
   }

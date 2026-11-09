@@ -37,6 +37,10 @@ struct Stmt {
     if (sqlite3_bind_int64(p, index, value) != SQLITE_OK)
       throw std::runtime_error("sqlite bind integer failed");
   }
+  void bind_null(int index) {
+    if (sqlite3_bind_null(p, index) != SQLITE_OK)
+      throw std::runtime_error("sqlite bind null failed");
+  }
   int step() {
     int rc = sqlite3_step(p);
     if (rc != SQLITE_ROW && rc != SQLITE_DONE) throw std::runtime_error(sqlite3_errmsg(sqlite3_db_handle(p)));
@@ -257,6 +261,17 @@ void initialize(Sqlite& db) {
       created_at TEXT NOT NULL, event_hash TEXT NOT NULL,
       relations_json TEXT DEFAULT '[]');
     CREATE INDEX IF NOT EXISTS insights_project ON continuity_insights(project_id, created_at DESC);
+    CREATE TABLE IF NOT EXISTS continuity_feedback(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      insight_id INTEGER REFERENCES continuity_insights(id),
+      project_id INTEGER NOT NULL REFERENCES projects(id),
+      target_type TEXT NOT NULL CHECK(target_type IN ('insight', 'gap', 'relation')),
+      target_ref TEXT NOT NULL,
+      decision TEXT NOT NULL CHECK(decision IN ('adopted', 'dismissed', 'corrected')),
+      reason TEXT,
+      actor TEXT NOT NULL,
+      created_at TEXT NOT NULL);
+    CREATE INDEX IF NOT EXISTS feedback_project ON continuity_feedback(project_id, target_type, target_ref);
     CREATE INDEX IF NOT EXISTS events_occurred ON events(occurred_at DESC,id DESC);
     CREATE INDEX IF NOT EXISTS events_project ON events(project_id,occurred_at DESC);
   )SQL");
@@ -555,8 +570,9 @@ std::string json_todos(Sqlite& db){
 }
 std::string json_continuity_insights(Sqlite& db, const std::string& project) {
   std::string sql = "SELECT i.id, i.event_id, p.name, e.source_ref, i.summary, i.gaps_json, i.model, i.created_at, i.event_hash, COALESCE(i.relations_json, '[]') "
-                    "FROM continuity_insights i JOIN projects p ON p.id=i.project_id JOIN events e ON e.id=i.event_id ";
-  if(!project.empty()) sql += "WHERE p.name=? ";
+                    "FROM continuity_insights i JOIN projects p ON p.id=i.project_id JOIN events e ON e.id=i.event_id "
+                    "WHERE i.id NOT IN (SELECT insight_id FROM continuity_feedback WHERE target_type='insight' AND decision='dismissed' AND insight_id IS NOT NULL) ";
+  if(!project.empty()) sql += "AND p.name=? ";
   sql += "ORDER BY i.id DESC LIMIT 50";
   Stmt s(db.db, sql);
   if(!project.empty()) s.bind(1, project);
@@ -589,6 +605,60 @@ std::string json_continuity_jobs(Sqlite& db) {
          ",\"processing\":" + std::to_string(counts["processing"]) +
          ",\"completed\":" + std::to_string(counts["completed"]) +
          ",\"failed\":" + std::to_string(counts["failed"]) + "}";
+}
+int64_t record_feedback(Sqlite& db, int64_t insight_id, const std::string& project,
+                        const std::string& target_type, const std::string& target_ref,
+                        const std::string& decision, const std::string& reason,
+                        const std::string& actor){
+  if(target_type != "insight" && target_type != "gap" && target_type != "relation")
+    throw std::runtime_error("target_type must be insight, gap, or relation");
+  if(decision != "adopted" && decision != "dismissed" && decision != "corrected")
+    throw std::runtime_error("decision must be adopted, dismissed, or corrected");
+  if(target_ref.empty() || target_ref.size() > 500)
+    throw std::runtime_error("target_ref required (max 500 chars)");
+  if(reason.size() > 2000)
+    throw std::runtime_error("reason exceeds 2000 chars");
+  Transaction tx(db);
+  const int p = project_id(db, project);
+  Stmt ins(db.db, "INSERT INTO continuity_feedback(insight_id, project_id, target_type, target_ref, decision, reason, actor, created_at) VALUES(?,?,?,?,?,?,?,?)");
+  if(insight_id > 0) ins.bind(1, insight_id);
+  else ins.bind_null(1);
+  ins.bind(2, static_cast<int64_t>(p));
+  ins.bind(3, target_type);
+  ins.bind(4, target_ref);
+  ins.bind(5, decision);
+  ins.bind(6, reason);
+  ins.bind(7, actor.empty() ? "user" : actor);
+  ins.bind(8, utc_now());
+  ins.step();
+  const auto id = sqlite3_last_insert_rowid(db.db);
+  tx.commit();
+  return id;
+}
+std::string json_continuity_feedback(Sqlite& db, const std::string& project){
+  std::string sql = "SELECT f.id, COALESCE(f.insight_id, 0), p.name, f.target_type, f.target_ref, f.decision, COALESCE(f.reason, ''), f.actor, f.created_at "
+                    "FROM continuity_feedback f JOIN projects p ON p.id=f.project_id ";
+  if(!project.empty()) sql += "WHERE p.name=? ";
+  sql += "ORDER BY f.id DESC LIMIT 50";
+  Stmt s(db.db, sql);
+  if(!project.empty()) s.bind(1, project);
+  std::string out = "[";
+  bool first = true;
+  while(s.step() == SQLITE_ROW){
+    if(!first) out += ",";
+    first = false;
+    out += "{\"id\":" + std::to_string(s.number(0)) +
+           ",\"insight_id\":" + std::to_string(s.number(1)) +
+           ",\"project\":" + json_string(s.str(2)) +
+           ",\"target_type\":" + json_string(s.str(3)) +
+           ",\"target_ref\":" + json_string(s.str(4)) +
+           ",\"decision\":" + json_string(s.str(5)) +
+           ",\"reason\":" + json_string(s.str(6)) +
+           ",\"actor\":" + json_string(s.str(7)) +
+           ",\"created_at\":" + json_string(s.str(8)) + "}";
+  }
+  out += "]";
+  return out;
 }
 std::string json_stats(Sqlite& db){
   Stmt s(db.db,"SELECT (SELECT COUNT(*) FROM projects),(SELECT COUNT(*) FROM roots),"
