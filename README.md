@@ -4,6 +4,14 @@
 
 Memória local de trabalho para retomar projetos: acompanha commits e mudanças em documentos, preserva uma linha do tempo e organiza notas, decisões, pendências e relações. Núcleo C++26 com SQLite, interface web, API HTTP e administração opcional por LLM via MCP.
 
+## Plano de evolução e continuidade
+
+A evolução para laboratório visual com automação, assistente LLM local e memória
+persistente está no [plano de execução](docs/PLANO-ASSISTENTE-LOCAL.md).
+Para retomar o trabalho com outro assistente, comece pela
+[passagem de contexto](docs/CONTINUIDADE.md). Essas capacidades estão planejadas;
+os comandos abaixo descrevem a versão operacional atual.
+
 ## Rodar com um comando
 
 Dentro da pasta do projeto:
