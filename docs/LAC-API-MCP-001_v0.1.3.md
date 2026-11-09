@@ -1,5 +1,7 @@
 # LAC v0.1.3 — API, MCP, integrações e rede
 
+> Documento da v0.1.3. A autenticação por token compartilhado foi substituída na v0.1.4; siga [acesso institucional](LAC-AUTH-001_v0.1.4.md). As rotas funcionais e os adaptadores abaixo continuam disponíveis após autenticação.
+
 ## Execução e autenticação
 
 ```bash

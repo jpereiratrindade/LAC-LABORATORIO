@@ -8,4 +8,4 @@ pkg-config --exists sqlite3 openssl || { echo 'Faltam sqlite-devel e/ou openssl-
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j "$(nproc)"
 ctest --test-dir build --output-on-failure
-printf '\nLAC pronto: ./build/lac init && ./build/lac serve --webroot ./web\n'
+printf '\nCompilação validada. Para instalar e iniciar o serviço: ./iniciar.sh\n'

@@ -11,3 +11,9 @@ __pycache__/
 .pytest_cache/
 .lac-local-backups/
 *.integrations.json
+
+.env
+.env.*
+!.env.example
+server.env
+mcp-sessions.json

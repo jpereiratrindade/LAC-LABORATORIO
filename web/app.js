@@ -1,5 +1,5 @@
 'use strict';
-// LAC v0.1.3: every actionable control maps to a real local endpoint or browser preference.
+// LAC v0.1.4: every actionable control maps to a real local endpoint or browser preference.
 const $ = id => document.getElementById(id);
 const $create = (tag, css = '', value) => {
   const node = document.createElement(tag);
@@ -15,9 +15,9 @@ const viewLabels = {overview:'Visão geral', timeline:'Linha do tempo', projects
   settings:'Preferências', integrations:'Integrações', about:'Sobre o LAC'};
 const eventIcons = {git_commit:'⌁',file_added:'+',file_changed:'↻',file_missing:'−',
   note:'✎',decision:'✓',todo:'□',todo_closed:'✓',relation:'◇',correction:'↶'};
-let apiToken='';
-try { apiToken=sessionStorage.getItem('lac_api_token')||''; } catch {}
-const authHeaders = () => apiToken ? {'Authorization':`Bearer ${apiToken}`} : {};
+let authenticated=false;
+try { sessionStorage.removeItem('lac_api_token'); } catch {}
+const authHeaders = () => ({});
 const api = async (path, data) => {
   const opts = data === undefined ? {} : {
     method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded','X-LAC-Local':'1'},
@@ -25,7 +25,7 @@ const api = async (path, data) => {
   };
   opts.headers={...opts.headers,...authHeaders()};
   const response = await fetch(path, opts);
-  if(response.status===403){$('accessPanel').hidden=false;}
+  if(response.status===401&&!path.startsWith('/api/auth/'))showLogin();
   const parsed = await response.json();
   if (!response.ok) throw new Error(parsed.error || `HTTP ${response.status}`);
   return parsed;
@@ -60,7 +60,7 @@ function setRecentDates() {
   $('filterFrom').value = formatDate(ago); $('filterTo').value = formatDate(now);
 }
 function showView(view) {
-  if (!viewLabels[view]) return;
+  if (!viewLabels[view]||!authenticated) return;
   activeView = view;
   $('currentView').textContent = viewLabels[view];
   for (const b of document.querySelectorAll('[data-view]')) {
@@ -262,7 +262,7 @@ $('preferCompact').addEventListener('change',e=>{document.body.classList.toggle(
 $('preferRecent').addEventListener('change',e=>savePreference('lac_recent',e.target.checked));
 if($('preferRecent').checked)setRecentDates();
 const initial=location.hash.replace(/^#/,'');
-showView(viewLabels[initial]?initial:'overview');
+initializeAuth();
 window.addEventListener('hashchange',()=>{const view=location.hash.replace(/^#/,'');if(viewLabels[view]&&view!==activeView)showView(view);});
 
 async function refreshIntegrations() {
@@ -309,9 +309,45 @@ $('activityQuery').addEventListener('submit',async e=>{
     if(!data.applications.length)target.append(empty('Nenhum intervalo retornado; isso não comprova ausência de atividade.'));
   }catch(err){showNotice(err.message,true);}finally{button.disabled=false;}
 });
-$('btnAccess').addEventListener('click',()=>{$('accessPanel').hidden=false;$('apiToken').focus();});
-$('accessForm').addEventListener('submit',async e=>{
-  e.preventDefault();apiToken=$('apiToken').value.trim();$('apiToken').value='';
-  try{sessionStorage.setItem('lac_api_token',apiToken);}catch{}
-  try{await refresh();$('accessPanel').hidden=true;showNotice('Acesso à API conectado nesta sessão.');}catch(err){showNotice(err.message,true);}
+
+function showLogin() {
+  authenticated=false;document.body.classList.add('auth-pending');$('loginScreen').hidden=false;
+  if($('noteDialog').open)$('noteDialog').close();
+  $('authEmailForm').hidden=false;$('authCodeForm').hidden=true;$('authCode').value='';
+  for(const id of ['events','eventsListing','todos','relations','roots','projects','documentResults','activityResults','integrationStatus'])$(id).replaceChildren();
+}
+function enterWorkspace(identity) {
+  authenticated=true;$('loginScreen').hidden=true;document.body.classList.remove('auth-pending');
+  $('sessionEmail').textContent=identity.email||'Sessão autenticada';
+  $('authCode').value='';$('authMessage').textContent='';
+  showView(viewLabels[initial]?initial:'overview');
+}
+async function initializeAuth() {
+  try{
+    const identity=await api('/api/auth/status');
+    if(identity.authenticated)enterWorkspace(identity);
+    else {showLogin();if(!identity.smtp_configured)$('authMessage').textContent='O envio de códigos precisa ser configurado pelo administrador.';}
+  }catch(error){showLogin();$('authMessage').textContent='Autenticação indisponível. Contate o administrador.';}
+}
+$('authEmailForm').addEventListener('submit',async event=>{
+  event.preventDefault();const button=event.currentTarget.querySelector('button');button.disabled=true;$('authMessage').textContent='';
+  const email=$('authEmail').value.trim().toLowerCase();
+  try{
+    const result=await api('/api/auth/request-code',{email});
+    $('authEmail').value=email;$('authEmailForm').hidden=true;$('authCodeForm').hidden=false;
+    $('authTarget').textContent=`Verifique a caixa de entrada de ${email}.`;
+    $('authMessage').textContent=result.message;$('authCode').focus();
+  }catch(error){$('authMessage').textContent=error.message;}finally{button.disabled=false;}
 });
+$('authCodeForm').addEventListener('submit',async event=>{
+  event.preventDefault();const button=event.currentTarget.querySelector('[type=submit]');button.disabled=true;
+  try{const identity=await api('/api/auth/verify-code',{email:$('authEmail').value,code:$('authCode').value});enterWorkspace(identity);}
+  catch(error){$('authMessage').textContent=error.message;}finally{button.disabled=false;}
+});
+$('authBack').addEventListener('click',()=>{$('authEmailForm').hidden=false;$('authCodeForm').hidden=true;$('authCode').value='';$('authMessage').textContent='Aguarde pelo menos 60 segundos entre solicitações.';});
+async function logout() {
+  try{await api('/api/auth/logout',{});showLogin();$('sessionEmail').textContent='';$('authMessage').textContent='Sessão encerrada.';}
+  catch(error){showNotice('Não foi possível encerrar a sessão: '+error.message,true);}
+}
+$('btnLogout').addEventListener('click',logout);
+$('btnAccess').addEventListener('click',logout);

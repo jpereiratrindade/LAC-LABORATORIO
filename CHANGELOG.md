@@ -37,3 +37,18 @@
 - Bind IPv4 configurável, incluindo `0.0.0.0`; token obrigatório para API em rede, com acesso pelo painel e MCP.
 - Testes de protocolo, autenticação, integridade e adaptadores com executável/serviço simulados.
 - Instalação persistente em `~/.local` e serviço systemd com linger para inicialização no boot e funcionamento sem login.
+
+## Próximas alterações
+
+- Comando único `./iniciar.sh` para compilar, testar, instalar e iniciar ou atualizar o serviço persistente.
+- Instalação repetida reinicia a versão instalada, preserva token/banco e verifica a saúde da API antes de informar sucesso.
+- README reorganizado para começar pela execução e pelo primeiro acesso; detalhes técnicos reunidos em `docs/OPERACAO-E-LIMITES.md`.
+
+## v0.1.4 — Acesso institucional restrito (2026-11-09)
+
+- Login por código de uso único enviado via SMTP TLS ao domínio exato @embrapa.br; sem fallback anônimo ou código de desenvolvimento.
+- Código de seis dígitos, validade de dez minutos, até cinco tentativas e reenvio mínimo de sessenta segundos; limites persistentes por e-mail/IP.
+- Sessão de doze horas com cookie HttpOnly/SameSite=Strict, revogação no logout e hashes em banco auxiliar, preservando eventos históricos.
+- Antigo token compartilhado retirado do login; credenciais de serviço opcionais e desabilitadas por padrão.
+- Ponte MCP com autenticação institucional interativa e sessão privada; configuração SMTP pode reaproveitar o remetente do MORFO local.
+- Integração opcional do LAC no catálogo Outros sistemas do sister-synth, com descoberta observada e redirecionamento em allowlist.

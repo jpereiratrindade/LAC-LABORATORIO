@@ -4,6 +4,8 @@
 - **Data:** 2026-11-09
 - **Decisão:** preservar o núcleo determinístico e oferecer administração por cliente LLM externo, adaptadores opcionais e bind IPv4 configurável.
 
+> Autenticação atualizada por [ADR-003](ADR-003-ACESSO-INSTITUCIONAL.md); o token compartilhado da v0.1.3 não é mais aceito como login.
+
 ## Contratos
 
 O servidor C++ mantém a API HTTP e o banco. Uma ponte Python padrão implementa MCP JSON-RPC por stdio e chama somente rotas conhecidas da API. Não oferece SQL, shell, leitura arbitrária, edição ou exclusão de eventos. Python só é necessário em execução para MCP e integrações; o núcleo continua independente.

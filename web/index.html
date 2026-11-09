@@ -11,7 +11,30 @@
   <link rel="stylesheet" href="/style.css">
   <script defer src="/app.js"></script>
 </head>
-<body>
+<body class="auth-pending">
+<section id="loginScreen" class="login-screen" aria-labelledby="authTitle">
+  <div class="login-card">
+    <img src="/assets/lac-symbol.svg" alt="" width="100" height="70">
+    <span class="eyebrow">LAC · ECOSSISTEMA SISTER</span>
+    <span class="login-badge">ACESSO RESTRITO</span>
+    <h1 id="authTitle">Entre com seu e-mail institucional</h1>
+    <p>Enviaremos um código de uso único para seu endereço <strong>@embrapa.br</strong>.</p>
+    <form id="authEmailForm" class="login-form">
+      <label for="authEmail">E-mail institucional</label>
+      <input id="authEmail" name="email" type="email" required maxlength="254" autocomplete="email" placeholder="nome@embrapa.br">
+      <button class="primary" type="submit">Enviar código por e-mail</button>
+    </form>
+    <form id="authCodeForm" class="login-form" hidden>
+      <p id="authTarget"></p>
+      <label for="authCode">Código de seis dígitos</label>
+      <input id="authCode" name="code" type="text" required inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="000000">
+      <button class="primary" type="submit">Entrar no laboratório</button>
+      <button id="authBack" class="ghost" type="button">Alterar e-mail / solicitar outro código</button>
+    </form>
+    <p id="authMessage" role="status" aria-live="polite"></p>
+    <small>O código expira em 10 minutos e permite até 5 tentativas. O reenvio requer uma espera mínima de 60 segundos.</small>
+  </div>
+</section>
 <svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
 <symbol id="ic-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></symbol>
 <symbol id="ic-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18M7 14h3m4 0h3M7 18h3"/></symbol>
@@ -40,8 +63,9 @@
     <strong>LAC</strong>
     <span class="mast-description">Laboratório de Continuidade<small>OBSERVAR · PRESERVAR · RECUPERAR</small></span>
   </a>
-  <span class="mast-version">v0.1.3</span>
+  <span class="mast-version">v0.1.4</span>
   <div class="mast-spacer"></div>
+  <span id="sessionEmail" class="mast-version"></span><button id="btnLogout" class="ghost" type="button">Sair</button>
   <span id="mastHealth" class="mast-health" role="status">Verificando cadeia...</span>
   <button class="mast-icon" data-go="settings" title="Preferências locais" aria-label="Abrir preferências"><svg><use href="#ic-settings"/></svg></button>
   <button class="mast-icon" data-go="about" title="Sobre o LAC" aria-label="Sobre o laboratório"><svg><use href="#ic-info"/></svg></button>
@@ -81,10 +105,6 @@
           <ul class="hero-questions"><li>O que fizemos?</li><li>Por que fizemos?</li><li>O que decidimos?</li><li>Onde estão os documentos?</li><li>O que ficou incompleto?</li><li>Qual é a próxima ação?</li></ul>
         </section>
       </div>
-      <section id="accessPanel" class="surface info-panel" hidden>
-        <form id="accessForm" class="integration-query"><label>Token de acesso à API<input id="apiToken" type="password" autocomplete="off" aria-label="Token da API"></label><button class="primary" type="submit">Conectar nesta sessão</button></form>
-        <p>Obrigatório quando o servidor está disponível na rede local.</p>
-      </section>
       <div id="notice" role="status" aria-live="polite" class="notice" hidden></div>
       <div id="dashboardBody" class="dashboard-body">
         <div id="dashboardStats" class="statgrid" aria-label="Indicadores">
@@ -144,8 +164,8 @@
         </div>
         <div class="info-panel"><h3>Administração por LLM · API/MCP</h3><p>Um cliente MCP compatível inicia <code>python3 scripts/lac_mcp.py</code>. A leitura é padrão; <code>--allow-write</code> habilita administração. Registros da LLM têm autoria indicada e relações permanecem candidatas.</p><p>O conteúdo consultado pode ser enviado ao provedor do modelo pelo cliente escolhido. O LAC não chama modelos diretamente.</p></div>
       </section>
-      <section id="view-settings" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-settings"/></svg><div><h2>Preferências locais</h2><p>Estas opções afetam somente este navegador.</p></div></div></div><div class="surface settings-panel"><button id="btnAccess" class="secondary" type="button">Configurar token de acesso</button><label><input type="checkbox" id="preferCompact"> Exibição compacta dos registros</label><label><input type="checkbox" id="preferRecent"> Abrir linha do tempo com filtro dos últimos sete dias</label><p class="support">As preferências ficam armazenadas no navegador; não alteram o banco de eventos nem executam varreduras.</p></div></section>
-      <section id="view-about" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-info"/></svg><div><h2>Sobre o laboratório</h2><p>LAC v0.1.3 · Memória operacional, relacional e evolutiva.</p></div></div></div><div class="info-panel"><strong>Sempre pronto. Sempre incompleto.</strong><p>O LAC ajuda a observar, preservar e recuperar trajetórias de trabalho com núcleo determinístico, sem telemetria. Administração por LLM via MCP e consultas ao Recoll e ActivityWatch são opcionais. REA, RIT e MPRR são referenciais metodológicos, não modelos automáticos de causalidade.</p></div></section>
+      <section id="view-settings" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-settings"/></svg><div><h2>Preferências locais</h2><p>Estas opções afetam somente este navegador.</p></div></div></div><div class="surface settings-panel"><button id="btnAccess" class="secondary" type="button">Sair e trocar conta</button><label><input type="checkbox" id="preferCompact"> Exibição compacta dos registros</label><label><input type="checkbox" id="preferRecent"> Abrir linha do tempo com filtro dos últimos sete dias</label><p class="support">As preferências ficam armazenadas no navegador; não alteram o banco de eventos nem executam varreduras.</p></div></section>
+      <section id="view-about" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-info"/></svg><div><h2>Sobre o laboratório</h2><p>LAC v0.1.4 · Memória operacional, relacional e evolutiva.</p></div></div></div><div class="info-panel"><strong>Sempre pronto. Sempre incompleto.</strong><p>O LAC ajuda a observar, preservar e recuperar trajetórias de trabalho com núcleo determinístico, sem telemetria. Administração por LLM via MCP e consultas ao Recoll e ActivityWatch são opcionais. REA, RIT e MPRR são referenciais metodológicos, não modelos automáticos de causalidade.</p></div></section>
     </div>
     <footer>REA — Reflexividade Epistêmica e Adaptativa &nbsp; | &nbsp; RIT — Reflexividade sob Integridade Temporal &nbsp; | &nbsp; MPRR — Percepção Relacional da Realidade<br><small>Os eventos observados demonstram alterações e registros; não demonstram, por si só, resultados científicos.</small></footer>
   </main>

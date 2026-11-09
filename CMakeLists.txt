@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(lac VERSION 0.1.3 LANGUAGES CXX)
+project(lac VERSION 0.1.4 LANGUAGES CXX)
 
 # gcc 14 and recent clang accept -std=c++2c; gcc 16 accepts the same dialect.
 # Avoid features absent from current compiler libraries; source is C++26-ready.
@@ -22,11 +22,12 @@ target_link_libraries(lac PRIVATE ${LAC_SQLITE_TARGET} OpenSSL::Crypto)
 target_compile_options(lac PRIVATE -Wall -Wextra -Wpedantic -Wconversion -Wshadow)
 install(TARGETS lac RUNTIME DESTINATION bin)
 install(DIRECTORY web/ DESTINATION share/lac/web)
-install(PROGRAMS scripts/lac_mcp.py scripts/lac_integrations.py DESTINATION share/lac/scripts)
+install(PROGRAMS scripts/lac_mcp.py scripts/lac_integrations.py scripts/lac_auth.py DESTINATION share/lac/scripts)
 install(FILES systemd/lac.service systemd/lac-lan.service DESTINATION share/lac/systemd)
 include(CTest)
 if(BUILD_TESTING)
   find_package(Python3 COMPONENTS Interpreter REQUIRED)
   add_test(NAME lac_integration COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_lab.py $<TARGET_FILE:lac>)
+  add_test(NAME lac_auth_policy COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_auth.py)
   set_tests_properties(lac_integration PROPERTIES TIMEOUT 40)
 endif()

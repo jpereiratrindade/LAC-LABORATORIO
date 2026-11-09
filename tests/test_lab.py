@@ -14,6 +14,7 @@ import sys
 import tempfile
 import time
 import unittest
+from smtp_fixture import MailSink
 from urllib.parse import urlencode
 
 BINARY = str(Path(sys.argv[1]).resolve()) if len(sys.argv) > 1 else 'lac'
@@ -44,11 +45,13 @@ class LabTests(unittest.TestCase):
             sock.bind(('127.0.0.1', 0))
             port = sock.getsockname()[1]
         self.port = port
-        self.token = token or ''
+        self.token = token if token is not None else 'test-service-' + 'x' * 40
         env = dict(os.environ)
-        env.pop('LAC_API_TOKEN', None)
-        if token:
-            env['LAC_API_TOKEN'] = token
+        for key in list(env):
+            if key.startswith('LAC_SMTP_') or key in ('LAC_API_TOKEN','LAC_SERVICE_TOKEN','LAC_AUTH_ALLOWED_EMAILS'):
+                env.pop(key, None)
+        if self.token:
+            env['LAC_SERVICE_TOKEN'] = self.token
         env.update(extra_env or {})
         self.proc = subprocess.Popen([BINARY, 'serve', '--db', str(self.db),
                                       '--port', str(port), '--scan-every', '0',
@@ -161,7 +164,7 @@ class LabTests(unittest.TestCase):
         page_status, page = self.req('/')
         self.assertEqual(200, page_status)
         self.assertIn('LAC', page)
-        self.assertIn('v0.1.3', page)
+        self.assertIn('v0.1.4', page)
         self.assertIn('data-view="overview"',page)
         self.assertIn('id="quickRail"',page)
         self.assertIn('id="view-integrity"',page)
@@ -213,16 +216,10 @@ class LabTests(unittest.TestCase):
 
 
     def test_network_binding_requires_token_and_protects_all_api_routes(self):
-        env = dict(os.environ)
-        env.pop('LAC_API_TOKEN', None)
-        failed = subprocess.run([BINARY, 'serve', '--db', str(self.db), '--bind', '0.0.0.0',
-                                 '--webroot', str(WEBROOT)], env=env, capture_output=True, text=True, timeout=3)
-        self.assertNotEqual(0, failed.returncode)
-        self.assertIn('LAC_API_TOKEN', failed.stderr)
         self.start_server(bind='0.0.0.0', token='test-token-' + 'a' * 40)
         self.assertEqual(200, self.req('/api/stats')[0])
-        self.assertEqual(403, self.req('/api/stats', extra={'Authorization': ''})[0])
-        self.assertEqual(403, self.req('/api/notes', {'project': 'P', 'kind': 'note', 'title': 'x'},
+        self.assertEqual(401, self.req('/api/stats', extra={'Authorization': ''})[0])
+        self.assertEqual(401, self.req('/api/notes', {'project': 'P', 'kind': 'note', 'title': 'x'},
                                       {'Authorization': 'Bearer wrong'})[0])
         self.assertEqual(403, self.req('/api/stats', extra={'Host': 'evil.invalid'})[0])
         lan_host = f'192.168.1.10:{self.port}'
@@ -237,8 +234,11 @@ class LabTests(unittest.TestCase):
             command.append('--allow-write')
         env = dict(os.environ)
         env.pop('LAC_API_TOKEN', None)
+        env.pop('LAC_SESSION_TOKEN', None)
+        env.pop('LAC_SERVICE_TOKEN', None)
+        env['HOME'] = str(self.home)
         if token:
-            env['LAC_API_TOKEN'] = token
+            env['LAC_SESSION_TOKEN'] = token
         init = {'jsonrpc': '2.0', 'id': 1, 'method': 'initialize', 'params': {
                 'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'test', 'version': '1'}}}
         messages = [init, {'jsonrpc': '2.0', 'method': 'notifications/initialized'}, *requests]
@@ -270,7 +270,7 @@ class LabTests(unittest.TestCase):
         call = lambda name, args={}: {'jsonrpc': '2.0', 'id': 2, 'method': 'tools/call',
                                       'params': {'name': name, 'arguments': args}}
         result = self.mcp_exchange([call('lac_record', {'project': 'P', 'kind': 'todo',
-                          'title': 'Validar integração', 'reference': 'docs/test.md'})], write=True)[1]['result']
+                          'title': 'Validar integração', 'reference': 'docs/test.md'})], write=True, token=self.token)[1]['result']
         self.assertFalse(result['isError'])
         todo_id = json.loads(result['content'][0]['text'])['id']
         event = self.req('/api/events')[1][0]
@@ -278,7 +278,7 @@ class LabTests(unittest.TestCase):
         self.assertEqual('llm:mcp:docs/test.md', event['source_ref'])
         self.assertEqual('declared', event['evidence_state'])
         result = self.mcp_exchange([call('lac_close_todo', {'id': todo_id}),
-            call('lac_propose_relation', {'from': 'P', 'to': 'Q', 'label': 'Integração possível'})], write=True)
+            call('lac_propose_relation', {'from': 'P', 'to': 'Q', 'label': 'Integração possível'})], write=True, token=self.token)
         self.assertTrue(all(not r['result']['isError'] for r in result[1:]))
         self.assertEqual([], self.req('/api/todos')[1])
         self.assertEqual(0, self.req('/api/stats')[1]['open_todos'])
@@ -395,5 +395,53 @@ class LabTests(unittest.TestCase):
         aw.server_close()
         self.assertEqual('unavailable', self.req('/api/integrations')[1]['activitywatch']['state'])
         self.assertEqual(200, self.req('/api/stats')[0])
+
+
+    def test_default_restriction_on_loopback_and_lan_without_smtp_or_legacy_bypass(self):
+        for index,bind in enumerate(('127.0.0.1','0.0.0.0')):
+            self.start_server(bind=bind,token='',extra_env={'LAC_API_TOKEN':'legacy-token-'+'z'*40})
+            self.assertEqual(401,self.req('/api/stats')[0])
+            self.assertEqual(401,self.req('/api/events')[0])
+            self.assertEqual(401,self.req('/api/stats',extra={'Authorization':'Bearer legacy-token-'+'z'*40})[0])
+            status,data=self.req('/api/auth/status')
+            self.assertEqual(200,status)
+            self.assertFalse(data['authenticated'])
+            self.assertFalse(data['smtp_configured'])
+            self.assertEqual(503,self.req('/api/auth/request-code',{'email':f'pesquisador{index}@embrapa.br'})[0])
+            self.assertEqual(403,self.req('/api/auth/request-code',{'email':'x@embrapa.br.evil'})[0])
+            self.assertEqual(200,self.req('/api/health')[0])
+            self.stop_server()
+
+    def test_email_otp_over_tls_cookie_mcp_session_and_logout(self):
+        mail=MailSink(self.home)
+        self.addCleanup(mail.close)
+        self.start_server(token='',extra_env=mail.environment)
+        email='pesquisador@embrapa.br'
+        status,data=self.req('/api/auth/request-code',{'email':email})
+        self.assertEqual(200,status)
+        self.assertNotIn('dev_code',data)
+        code=mail.code()
+        self.assertEqual(429,self.req('/api/auth/request-code',{'email':email})[0])
+        conn=http.client.HTTPConnection('127.0.0.1',self.port,timeout=4)
+        conn.request('POST','/api/auth/verify-code',body=urlencode({'email':email,'code':code}),
+                     headers={'Content-Type':'application/x-www-form-urlencoded','X-LAC-Local':'1'})
+        response=conn.getresponse();identity=json.loads(response.read());cookie=response.getheader('Set-Cookie')
+        self.assertEqual(200,response.status);conn.close()
+        self.assertIn('HttpOnly',cookie);self.assertIn('SameSite=Strict',cookie)
+        self.assertTrue(identity['authenticated'])
+        self.assertEqual(email,identity['email'])
+        session=identity['session_token']
+        cookie=cookie.split(';',1)[0]
+        self.assertEqual(200,self.req('/api/stats',extra={'Cookie':cookie})[0])
+        self.assertEqual(200,self.req('/api/stats',extra={'Authorization':'Bearer '+session})[0])
+        self.assertEqual(401,self.req('/api/auth/verify-code',{'email':email,'code':code})[0])
+        call={'jsonrpc':'2.0','id':2,'method':'tools/call','params':{'name':'lac_stats'}}
+        self.assertFalse(self.mcp_exchange([call],token=session)[1]['result']['isError'])
+        self.assertEqual(200,self.req('/api/auth/logout',{},extra={'Cookie':cookie})[0])
+        self.assertEqual(401,self.req('/api/stats',extra={'Cookie':cookie})[0])
+        self.assertFalse(self.req('/api/auth/status',extra={'Cookie':cookie})[1]['authenticated'])
+        with sqlite3.connect(str(self.db)+'.auth.sqlite3') as auth:
+            self.assertEqual(0,auth.execute('SELECT COUNT(*) FROM sessions').fetchone()[0])
+        self.assertTrue(self.req('/api/health')[1]['auth_required'])
 
 if __name__=='__main__': unittest.main(verbosity=2)

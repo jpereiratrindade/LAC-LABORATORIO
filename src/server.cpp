@@ -7,6 +7,7 @@
 #include <chrono>
 #include <csignal>
 #include <cstring>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -76,9 +77,10 @@ void send_all(int fd,const std::string& text){
     pos+=static_cast<size_t>(n);
   }
 }
-void respond(int fd,int status,const std::string& content_type,const std::string& body){
+void respond(int fd,int status,const std::string& content_type,const std::string& body,const std::string& cookie=""){
   const std::string status_text=status==200?"OK":status==201?"Created":status==400?"Bad Request":
-    status==403?"Forbidden":status==404?"Not Found":status==405?"Method Not Allowed":
+    status==401?"Unauthorized":status==403?"Forbidden":status==404?"Not Found":status==405?"Method Not Allowed":
+    status==429?"Too Many Requests":status==503?"Service Unavailable":
     status==413?"Payload Too Large":"Internal Server Error";
   std::ostringstream headers;
   headers<<"HTTP/1.1 "<<status<<" "<<status_text<<"\r\n"
@@ -89,16 +91,55 @@ void respond(int fd,int status,const std::string& content_type,const std::string
     <<"X-Frame-Options: DENY\r\n"
     <<"Referrer-Policy: no-referrer\r\n"
     <<"Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; "
-         "connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'\r\n"
-    <<"Connection: close\r\n\r\n";
+         "connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'\r\n";
+  if(!cookie.empty())headers<<"Set-Cookie: "<<cookie<<"\r\n";
+  headers<<"Connection: close\r\n\r\n";
   send_all(fd,headers.str()+body);
 }
 void json_error(int fd,int status,const std::string& message){
   respond(fd,status,"application/json; charset=utf-8","{\"error\":"+json_string(message)+"}");
 }
+std::string encode(const std::string& input){
+  const char* hex="0123456789ABCDEF";std::string out;
+  for(unsigned char c:input){
+    if((c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')||c=='-'||c=='_'||c=='.')out+=static_cast<char>(c);
+    else{out+='%';out+=hex[c>>4];out+=hex[c&15];}
+  }
+  return out;
+}
+std::string session_token(const std::map<std::string,std::string>& headers){
+  const auto bearer=value(headers,"authorization");
+  if(!bearer.empty())return bearer.starts_with("Bearer ")?bearer.substr(7):"";
+  std::istringstream cookies(value(headers,"cookie"));std::string part,token;int count=0;
+  while(std::getline(cookies,part,';')){
+    part=trim(part);if(part.starts_with("lac_session=")){token=part.substr(12);++count;}
+  }
+  return count==1?token:"";
+}
+struct AuthReply{int status;std::string body,cookie;};
+AuthReply authenticate(Sqlite& db,const fs::path& helper,const std::string& action,const std::string& params) try {
+  const char* filename=sqlite3_db_filename(db.db,"main");
+  if(!filename)throw std::runtime_error("authentication database path unavailable");
+  const auto raw=integration_request(helper,std::string(filename)+".auth.sqlite3",action,params,true);
+  sqlite3_stmt* statement=nullptr;
+  if(sqlite3_prepare_v2(db.db,"SELECT json_extract(?1,'$.status'),json_extract(?1,'$.body'),COALESCE(json_extract(?1,'$.cookie'),'')",-1,&statement,nullptr)!=SQLITE_OK)
+    throw std::runtime_error("authentication response unavailable");
+  sqlite3_bind_text(statement,1,raw.c_str(),-1,SQLITE_TRANSIENT);
+  if(sqlite3_step(statement)!=SQLITE_ROW||sqlite3_column_type(statement,1)==SQLITE_NULL){
+    sqlite3_finalize(statement);throw std::runtime_error("invalid authentication response");
+  }
+  AuthReply result{sqlite3_column_int(statement,0),reinterpret_cast<const char*>(sqlite3_column_text(statement,1)),
+                   reinterpret_cast<const char*>(sqlite3_column_text(statement,2))};
+  sqlite3_finalize(statement);
+  if(result.status<200||result.status>599||result.cookie.find_first_of("\r\n")!=std::string::npos)
+    throw std::runtime_error("invalid authentication response");
+  return result;
+}catch(const std::exception&){
+  return {503,"{\"error\":\"Autenticação indisponível. Contate o administrador.\"}",""};
+}
 void handle_client(int fd,Sqlite& db,int port,const fs::path& web_root,
                    const fs::path& integration_helper,const fs::path& integration_config,
-                   bool network,const std::string& token) {
+                   bool network) {
   timeval timeout{4,0};
   setsockopt(fd,SOL_SOCKET,SO_RCVTIMEO,&timeout,sizeof(timeout));
   setsockopt(fd,SOL_SOCKET,SO_SNDTIMEO,&timeout,sizeof(timeout));
@@ -143,20 +184,13 @@ void handle_client(int fd,Sqlite& db,int port,const fs::path& web_root,
   }
   if(!valid_host){json_error(fd,403,"invalid host; use an IPv4 address or localhost");return;}
   const auto origin=value(headers,"origin");
-  if(!origin.empty() && origin!="http://"+host){
+  const char* cookie_secure=std::getenv("LAC_COOKIE_SECURE");
+  const bool https_origin=cookie_secure&&std::string(cookie_secure)=="1"&&origin=="https://"+host;
+  if(!origin.empty() && origin!="http://"+host&&!https_origin){
     json_error(fd,403,"cross-origin operation not allowed");return;
   }
   const auto question=target.find('?');
   const std::string path=target.substr(0,question);
-  if(path.starts_with("/api/")&&!token.empty()){
-    const auto supplied=value(headers,"authorization");
-    const auto expected="Bearer "+token;
-    unsigned int difference=static_cast<unsigned int>(supplied.size()!=expected.size());
-    for(size_t i=0;i<expected.size();++i)
-      difference|=static_cast<unsigned int>(static_cast<unsigned char>(expected[i])^
-        (i<supplied.size()?static_cast<unsigned char>(supplied[i]):0U));
-    if(difference){json_error(fd,403,"API token required");return;}
-  }
   std::string param_str=question==std::string::npos?"":target.substr(question+1);
   if(method=="POST") {
     if(value(headers,"x-lac-local")!="1") {json_error(fd,403,"missing local API header");return;}
@@ -181,6 +215,24 @@ void handle_client(int fd,Sqlite& db,int port,const fs::path& web_root,
   try {q=parameters(param_str);} catch(const std::exception& e){json_error(fd,400,e.what());return;}
   try {
     std::string output,content_type="application/json; charset=utf-8";int status=200;
+    const auto auth_helper=integration_helper.parent_path()/"lac_auth.py";
+    const auto auth_token="token="+encode(session_token(headers));
+    if(method=="GET"&&path=="/api/auth/status"){
+      const auto reply=authenticate(db,auth_helper,"status",auth_token);
+      respond(fd,reply.status,content_type,reply.body,reply.cookie);return;
+    }
+    if(method=="POST"&&(path=="/api/auth/request-code"||path=="/api/auth/verify-code"||path=="/api/auth/logout")){
+      sockaddr_in peer{};socklen_t size=sizeof(peer);char ip[INET_ADDRSTRLEN]{};
+      if(getpeername(fd,reinterpret_cast<sockaddr*>(&peer),&size)==0)inet_ntop(AF_INET,&peer.sin_addr,ip,sizeof(ip));
+      const auto params=auth_token+"&email="+encode(value(q,"email"))+"&code="+encode(value(q,"code"))+"&ip="+encode(ip);
+      const auto action=path.substr(std::string("/api/auth/").size());
+      const auto reply=authenticate(db,auth_helper,action,params);
+      respond(fd,reply.status,content_type,reply.body,reply.cookie);return;
+    }
+    if(path.starts_with("/api/")&&!(method=="GET"&&path=="/api/health")){
+      const auto reply=authenticate(db,auth_helper,"authorize",auth_token);
+      if(reply.status!=200){respond(fd,reply.status,content_type,reply.body);return;}
+    }
     const bool llm=value(headers,"x-lac-agent")=="mcp";
     if(method=="GET"){
       if(path=="/"||path=="/index.html"){
@@ -195,7 +247,7 @@ void handle_client(int fd,Sqlite& db,int port,const fs::path& web_root,
         output=read_file(web_root/"assets"/"lac-symbol.svg");content_type="image/svg+xml";
       }else if(path=="/assets/lac-icon-512.png"){
         output=read_file(web_root/"assets"/"lac-icon-512.png");content_type="image/png";
-      }else if(path=="/api/health")output="{\"ok\":true,\"mode\":\"local\",\"version\":\"0.1.3\",\"mcp\":\"stdio_bridge\"}";
+      }else if(path=="/api/health")output="{\"ok\":true,\"service\":\"lac\",\"mode\":\"local\",\"version\":\"0.1.4\",\"auth_required\":true,\"mcp\":\"stdio_bridge\"}";
       else if(path=="/api/integrations"||path=="/api/integrations/recoll/search"||path=="/api/integrations/activitywatch/activity"){
         const std::string action=path=="/api/integrations"?"status":path=="/api/integrations/recoll/search"?"search":"activity";
         output=integration_request(integration_helper,integration_config,action,param_str);
@@ -242,7 +294,7 @@ void handle_client(int fd,Sqlite& db,int port,const fs::path& web_root,
   }catch(const std::exception& ex){
     // Invalid user input is a 400; internal errors are not exposed as SQL or paths.
     std::cerr<<"request error: "<<ex.what()<<"\n";
-    json_error(fd,400,"request failed; see local server log");
+    json_error(fd,path.starts_with("/api/auth/")?503:400,"request failed; see local server log");
   }
 }
 } // namespace
@@ -252,7 +304,7 @@ void serve(Sqlite& db,int port,int scan_every,const fs::path& web_root,
   if(port<1024||port>65535)throw std::runtime_error("port must be 1024-65535");
   if(scan_every<0||scan_every>86400)throw std::runtime_error("scan interval must be 0-86400 seconds");
   const bool network=bind_address!="127.0.0.1";
-  if(network&&token.size()<32)throw std::runtime_error("network access requires LAC_API_TOKEN with at least 32 characters");
+  if(!token.empty()&&token.size()<32)throw std::runtime_error("LAC_SERVICE_TOKEN must have at least 32 characters");
   if(token.find_first_of("\r\n")!=std::string::npos)throw std::runtime_error("invalid API token");
   if(!fs::is_regular_file(web_root/"index.html"))throw std::runtime_error("web UI assets missing: "+web_root.string());
   const int listener=socket(AF_INET,SOCK_STREAM|SOCK_CLOEXEC,0);
@@ -278,7 +330,7 @@ void serve(Sqlite& db,int port,int scan_every,const fs::path& web_root,
     const int n=poll(&pfd,1,500);
     if(n>0&&(pfd.revents&POLLIN)){
       int client=accept4(listener,nullptr,nullptr,SOCK_CLOEXEC);
-      if(client>=0){handle_client(client,db,port,web_root,integration_helper,integration_config,network,token);close(client);}
+      if(client>=0){handle_client(client,db,port,web_root,integration_helper,integration_config,network);close(client);}
     }else if(n<0&&errno!=EINTR)break;
   }
   close(listener);std::signal(SIGINT,old_int);std::signal(SIGTERM,old_term);

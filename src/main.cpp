@@ -24,7 +24,7 @@ std::map<std::string,std::string> arguments(int argc,char** argv,int begin){
   return out;
 }
 void help(){
-  std::cout<<R"(LAC - Laboratorio de Continuidade v0.1.3
+  std::cout<<R"(LAC - Laboratorio de Continuidade v0.1.4
 Uso:
   lac init [--db CAMINHO]
   lac register --project NOME --path DIRETORIO --kind git|docs [--db CAMINHO]
@@ -36,7 +36,8 @@ Uso:
   lac serve [--db CAMINHO] [--port 8765] [--scan-every 180] [--webroot WEB]
             [--bind 127.0.0.1|0.0.0.0] [--integration-helper SCRIPT] [--integration-config ARQUIVO]
 
-Rede local: --bind 0.0.0.0 exige LAC_API_TOKEN (minimo 32 caracteres) no ambiente.
+API restrita por padrao: login por codigo enviado ao e-mail @embrapa.br.
+Rede local: --bind 0.0.0.0. Configure LAC_SMTP_* para envio de codigos.
 MCP opcional: python3 scripts/lac_mcp.py [--url http://127.0.0.1:8765] [--allow-write]
 
 Banco padrao: ~/.local/share/lac/lac.db (ou $XDG_DATA_HOME/lac/lac.db)
@@ -107,7 +108,7 @@ int main(int argc,char** argv){
     }else if(cmd=="serve"){
       const int port=std::stoi(option(args,"--port","8765"));
       const int seconds=std::stoi(option(args,"--scan-every","180"));
-      const char* token=std::getenv("LAC_API_TOKEN");
+      const char* token=std::getenv("LAC_SERVICE_TOKEN");
       lac::serve(db,port,seconds,web_root(args,argv[0]),integration_helper(args,argv[0]),
                  option(args,"--integration-config",file.string()+".integrations.json"),
                  option(args,"--bind","127.0.0.1"),token?token:"");
