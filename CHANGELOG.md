@@ -27,3 +27,13 @@
 - Marca do LAC redesenhada com filamentos em SVG, sem fontes, ícones ou bibliotecas externas.
 - Preferências da interface armazenadas somente no navegador, sem mudança no banco.
 - Sem migrações, sem novas permissões, sem telemetria ou inferência automatizada.
+
+## v0.1.3 — Integrações, API/MCP e rede local (2026-11-09)
+
+- Ponte MCP por stdio, sem pacotes Python externos: consultas por padrão, administração habilitada por `--allow-write`.
+- Proveniência LLM em notas, decisões, pendências, encerramentos e relações candidatas; sem alterar eventos históricos ou esquema do banco.
+- Adaptadores opcionais Recoll e ActivityWatch com escopos explícitos, limites e consultas sob demanda.
+- Nova seção Integrações no painel, busca documental e resumos de intervalos por aplicativo; nenhuma importação automática.
+- Bind IPv4 configurável, incluindo `0.0.0.0`; token obrigatório para API em rede, com acesso pelo painel e MCP.
+- Testes de protocolo, autenticação, integridade e adaptadores com executável/serviço simulados.
+- Instalação persistente em `~/.local` e serviço systemd com linger para inicialização no boot e funcionamento sem login.

@@ -58,8 +58,8 @@ bool verify_chain(Sqlite& db, std::string& error);
 int64_t append_event(Sqlite& db, Event event);
 int64_t record_note(Sqlite& db, const std::string& project, const std::string& kind,
                     const std::string& title, const std::string& body,
-                    const std::string& reference = "");
-int64_t close_todo(Sqlite& db, int64_t todo_id);
+                    const std::string& reference = "", bool llm = false);
+int64_t close_todo(Sqlite& db, int64_t todo_id, bool llm = false);
 int64_t record_relation(Sqlite& db, const std::string& from, const std::string& to,
-                        const std::string& label, const std::string& state);
+                        const std::string& label, const std::string& state, bool llm = false);
 } // namespace lac

@@ -1,5 +1,5 @@
 'use strict';
-// LAC v0.1.2: every actionable control maps to a real local endpoint or browser preference.
+// LAC v0.1.3: every actionable control maps to a real local endpoint or browser preference.
 const $ = id => document.getElementById(id);
 const $create = (tag, css = '', value) => {
   const node = document.createElement(tag);
@@ -12,15 +12,20 @@ let debounce;
 const viewLabels = {overview:'Visão geral', timeline:'Linha do tempo', projects:'Projetos',
   events:'Eventos', relations:'Relações', sources:'Fontes', todos:'Pendências',
   observation:'Observação', integrity:'Integridade', reports:'Relatórios',
-  settings:'Preferências', about:'Sobre o LAC'};
+  settings:'Preferências', integrations:'Integrações', about:'Sobre o LAC'};
 const eventIcons = {git_commit:'⌁',file_added:'+',file_changed:'↻',file_missing:'−',
   note:'✎',decision:'✓',todo:'□',todo_closed:'✓',relation:'◇',correction:'↶'};
+let apiToken='';
+try { apiToken=sessionStorage.getItem('lac_api_token')||''; } catch {}
+const authHeaders = () => apiToken ? {'Authorization':`Bearer ${apiToken}`} : {};
 const api = async (path, data) => {
   const opts = data === undefined ? {} : {
     method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded','X-LAC-Local':'1'},
     body: new URLSearchParams(data).toString()
   };
+  opts.headers={...opts.headers,...authHeaders()};
   const response = await fetch(path, opts);
+  if(response.status===403){$('accessPanel').hidden=false;}
   const parsed = await response.json();
   if (!response.ok) throw new Error(parsed.error || `HTTP ${response.status}`);
   return parsed;
@@ -95,7 +100,7 @@ async function refreshProjectsOptions() {
 }
 function renderEvent(target,e) {
   const element=card(e.title,e.body,[[e.project],[(e.kind||'').replaceAll('_',' ')],
-    [e.evidence_state,e.evidence_state]],e.source_ref,e.occurred_at,eventIcons[e.kind]||'◦');
+    [e.evidence_state,e.evidence_state],[e.actor==='llm'?'Autoria: LLM':e.actor==='user'?'Autoria: pessoa':'Observação automática']],e.source_ref,e.occurred_at,eventIcons[e.kind]||'◦');
   element.querySelector('.event-time').append($create('span','',`Registrado: ${localDate(e.recorded_at)}`));
   target.append(element);
 }
@@ -143,7 +148,7 @@ async function refreshTodos() {
   const list=await api('/api/todos'),target=$('todos');target.replaceChildren();
   if (!list.length) {target.append(empty('Nenhuma pendência aberta registrada.'));return;}
   for (const t of list) {
-    const el=card(t.title,t.body,[[t.project],['declarada','declared']],`Evento #${t.id}`,t.occurred_at,'□');
+    const el=card(t.title,t.body,[[t.project],['declarada','declared'],[t.actor==='llm'?'Autoria: LLM':'Autoria: pessoa']],`Evento #${t.id}`,t.occurred_at,'□');
     const btn=$create('button','inline-button','Registrar encerramento');btn.type='button';
     btn.addEventListener('click',async()=>{
       if (!confirm('Declarar a pendência concluída? O histórico será preservado.'))return;
@@ -157,7 +162,7 @@ async function refreshRelations() {
   const list=await api('/api/relations'),target=$('relations');target.replaceChildren();
   if (!list.length) {target.append(empty('Nenhuma relação declarada.'));return;}
   for (const r of list) target.append(card(`${r.from} ↔ ${r.to}`,r.label,
-    [[r.state==='candidate'?'Candidata':'Confirmada pelo usuário',r.state==='candidate'?'proposed':'declared']],
+    [[r.state==='candidate'?'Candidata':'Confirmada pelo usuário',r.state==='candidate'?'proposed':'declared'],[r.actor==='llm'?'Autoria: LLM':'Autoria: pessoa']],
     `Evento #${r.event_id}`,'','◇'));
 }
 async function refreshRoots(){
@@ -178,6 +183,7 @@ async function refresh(){
     case 'todos':await refreshTodos();break;
     case 'relations':await refreshRelations();break;
     case 'sources':case 'observation':await refreshRoots();break;
+    case 'integrations':await refreshIntegrations();break;
     case 'integrity':await verify(false);break;
     default:break;
   }
@@ -202,7 +208,7 @@ async function verify(notify=true) {
   return r;
 }
 async function exportReport(params){
-  const response=await fetch(`/api/report?${params}`);
+  const response=await fetch(`/api/report?${params}`,{headers:authHeaders()});
   if(!response.ok)throw new Error('Falha ao gerar diário');
   const blob=await response.blob(),url=URL.createObjectURL(blob);
   const a=document.createElement('a');a.href=url;
@@ -258,3 +264,54 @@ if($('preferRecent').checked)setRecentDates();
 const initial=location.hash.replace(/^#/,'');
 showView(viewLabels[initial]?initial:'overview');
 window.addEventListener('hashchange',()=>{const view=location.hash.replace(/^#/,'');if(viewLabels[view]&&view!==activeView)showView(view);});
+
+async function refreshIntegrations() {
+  const data=await api('/api/integrations'),target=$('integrationStatus');target.replaceChildren();
+  for(const [name,conf] of Object.entries(data)){
+    const label={disabled:'Desabilitado',configured:'Configurado; índice ainda não consultado',missing:'Ferramenta não instalada',reachable:'API acessível; coleta não verificada',unavailable:'API indisponível'}[conf.state]||conf.state;
+    target.append(card(name==='recoll'?'Recoll':'ActivityWatch',label,[],conf.last_query_at?`Última consulta: ${localDate(conf.last_query_at)}`:'Nenhuma consulta registrada'));
+    const form=$(name==='recoll'?'recollConfig':'activityConfig');
+    form.elements.enabled.checked=conf.enabled;
+    for(const key of name==='recoll'?['config_dir','roots']:['url','buckets'])form.elements[key].value=conf[key]||'';
+  }
+  const aw=data.activitywatch,select=$('activityBucket'),before=select.value;select.replaceChildren();
+  for(const bucket of (aw.buckets||'').split('\n').filter(Boolean))select.add(new Option(bucket,bucket));
+  if([...select.options].some(option=>option.value===before))select.value=before;
+  const available=(aw.available_buckets||[]).map(bucket=>bucket.id).join('\n');
+  if(available)target.append(card('Buckets disponíveis',available));
+}
+for(const id of ['recollConfig','activityConfig'])$(id).addEventListener('submit',async e=>{
+  e.preventDefault();const form=e.currentTarget,data=Object.fromEntries(new FormData(form));data.enabled=String(form.elements.enabled.checked);
+  const button=form.querySelector('[type=submit]');button.disabled=true;
+  try{await api('/api/integrations/configure',data);showNotice('Escopo da integração atualizado.');await refreshIntegrations();}
+  catch(err){showNotice(err.message,true);}finally{button.disabled=false;}
+});
+$('btnIntegrationsRefresh').addEventListener('click',()=>refreshIntegrations().catch(e=>showNotice(e.message,true)));
+$('recollSearch').addEventListener('submit',async e=>{
+  e.preventDefault();const button=e.currentTarget.querySelector('button');button.disabled=true;
+  try{
+    const q=new URLSearchParams(new FormData(e.currentTarget)),data=await api(`/api/integrations/recoll/search?${q}`),target=$('documentResults');target.replaceChildren();
+    if(!data.results.length)target.append(empty('Nenhum resultado na fatia consultada do índice e nas pastas autorizadas.'));
+    for(const item of data.results){
+      const element=card(item.title||item.path,item.abstract,[[item.mimetype]],item.path,item.mtime&&/^\d+$/.test(item.mtime)?new Date(Number(item.mtime)*1000).toISOString():'');
+      const save=$create('button','secondary','Preparar nota com referência');save.type='button';
+      save.addEventListener('click',()=>{openNote();const form=$('noteForm');form.elements.title.value=(item.title||item.path).slice(0,200);form.elements.body.value='Resultado consultado no Recoll; relevância e conteúdo ainda não verificados.\n'+item.abstract;form.elements.reference.value=item.path.slice(0,3000);});
+      element.append(save);target.append(element);
+    }
+  }catch(err){showNotice(err.message,true);}finally{button.disabled=false;}
+});
+$('activityQuery').addEventListener('submit',async e=>{
+  e.preventDefault();const button=e.currentTarget.querySelector('button');button.disabled=true;
+  try{
+    const q=new URLSearchParams(new FormData(e.currentTarget)),data=await api(`/api/integrations/activitywatch/activity?${q}`),target=$('activityResults');target.replaceChildren();
+    target.append($create('p','support',`${data.events_returned} evento(s) consultado(s)${data.possibly_truncated?' · limite atingido; resumo parcial':''}. Nenhum evento importado.`));
+    for(const item of data.applications)target.append(card(item.app,`${Math.round(item.seconds/60)} min em intervalos reportados`));
+    if(!data.applications.length)target.append(empty('Nenhum intervalo retornado; isso não comprova ausência de atividade.'));
+  }catch(err){showNotice(err.message,true);}finally{button.disabled=false;}
+});
+$('btnAccess').addEventListener('click',()=>{$('accessPanel').hidden=false;$('apiToken').focus();});
+$('accessForm').addEventListener('submit',async e=>{
+  e.preventDefault();apiToken=$('apiToken').value.trim();$('apiToken').value='';
+  try{sessionStorage.setItem('lac_api_token',apiToken);}catch{}
+  try{await refresh();$('accessPanel').hidden=true;showNotice('Acesso à API conectado nesta sessão.');}catch(err){showNotice(err.message,true);}
+});

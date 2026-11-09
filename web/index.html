@@ -40,7 +40,7 @@
     <strong>LAC</strong>
     <span class="mast-description">Laboratório de Continuidade<small>OBSERVAR · PRESERVAR · RECUPERAR</small></span>
   </a>
-  <span class="mast-version">v0.1.2</span>
+  <span class="mast-version">v0.1.3</span>
   <div class="mast-spacer"></div>
   <span id="mastHealth" class="mast-health" role="status">Verificando cadeia...</span>
   <button class="mast-icon" data-go="settings" title="Preferências locais" aria-label="Abrir preferências"><svg><use href="#ic-settings"/></svg></button>
@@ -62,13 +62,14 @@
     <div class="side-section">GESTÃO</div>
     <nav aria-label="Operações do laboratório">
       <button class="nav" type="button" data-view="observation"><svg><use href="#ic-eye"/></svg>Observação</button>
+      <button class="nav" type="button" data-view="integrations"><svg><use href="#ic-links"/></svg>Integrações</button>
       <button class="nav" type="button" data-view="integrity"><svg><use href="#ic-shield"/></svg>Integridade</button>
       <button class="nav" type="button" data-view="reports"><svg><use href="#ic-report"/></svg>Relatórios</button>
       <button class="nav" type="button" data-view="settings"><svg><use href="#ic-settings"/></svg>Preferências</button>
     </nav>
     <div class="sidebar-spacer"></div>
     <div class="principles"><img src="/assets/lac-symbol.svg" alt="" width="62" height="45"><strong>REA · RIT · MPRR</strong><span>Reflexividade · Integridade temporal · Percepção relacional</span><small>Sempre pronto. Sempre incompleto.</small></div>
-    <div class="side-bottom"><span class="status-dot"></span>Processamento local<br><span class="muted">Sem LLM · 127.0.0.1:8765</span></div>
+    <div class="side-bottom"><span class="status-dot"></span>Processamento local<br><span class="muted">Núcleo local · MCP opcional</span></div>
   </aside>
   <main class="main">
     <div class="breadcrumb"><strong>LAC</strong><span>/</span><span id="currentView">Visão geral</span></div>
@@ -80,6 +81,10 @@
           <ul class="hero-questions"><li>O que fizemos?</li><li>Por que fizemos?</li><li>O que decidimos?</li><li>Onde estão os documentos?</li><li>O que ficou incompleto?</li><li>Qual é a próxima ação?</li></ul>
         </section>
       </div>
+      <section id="accessPanel" class="surface info-panel" hidden>
+        <form id="accessForm" class="integration-query"><label>Token de acesso à API<input id="apiToken" type="password" autocomplete="off" aria-label="Token da API"></label><button class="primary" type="submit">Conectar nesta sessão</button></form>
+        <p>Obrigatório quando o servidor está disponível na rede local.</p>
+      </section>
       <div id="notice" role="status" aria-live="polite" class="notice" hidden></div>
       <div id="dashboardBody" class="dashboard-body">
         <div id="dashboardStats" class="statgrid" aria-label="Indicadores">
@@ -110,6 +115,7 @@
             <button class="rail-action" type="button" id="btnVerify"><svg><use href="#ic-shield"/></svg><span>Verificar integridade</span><svg class="arrow"><use href="#ic-chevron"/></svg></button>
             <button class="rail-action" type="button" id="btnReportQuick"><svg><use href="#ic-download"/></svg><span>Exportar diário</span><svg class="arrow"><use href="#ic-chevron"/></svg></button>
           </section>
+          <section class="surface rail-card"><h3>Fontes auxiliares</h3><button class="rail-action" type="button" data-go="integrations">Busca documental · Recoll</button><button class="rail-action" type="button" data-go="integrations">Contexto operacional · ActivityWatch</button><button class="rail-action" type="button" data-go="integrations">Administração · API/MCP</button></section>
           <section class="surface rail-card about-rail"><h3><svg><use href="#ic-info"/></svg>Sobre o LAC</h3><strong>Laboratório de Continuidade</strong><p>Observador determinístico de atividades, artefatos e relações, inspirado em REA, RIT e MPRR.</p><div class="motto">Sempre pronto. Sempre incompleto.</div></section>
         </aside>
       </div>
@@ -121,8 +127,25 @@
       <section id="view-observation" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-eye"/></svg><div><h2>Observação</h2><p>Uma varredura lê fontes autorizadas e cria somente eventos novos.</p></div></div><button id="btnScanFull" class="primary" type="button"><svg><use href="#ic-refresh"/></svg> Executar varredura</button></div><div class="info-panel"><strong>Observação explícita e idempotente</strong><p>Commits Git e alterações documentais são registros de mudança, não conclusões sobre a qualidade dos resultados. Cadastre fontes antes de observar.</p><button class="secondary" data-go="sources" type="button">Gerenciar fontes</button></div><div id="observationRoots" class="events"></div></section>
       <section id="view-integrity" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-shield"/></svg><div><h2>Integridade da trilha</h2><p>Verificação da cadeia SHA-256 armazenada no SQLite.</p></div></div><button id="btnVerifyFull" class="primary" type="button">Verificar agora</button></div><div id="integrityDetails" class="info-panel" role="status">Verificação ainda não executada nesta tela.</div><div class="info-panel"><strong>Limite da verificação</strong><p>A cadeia interna ajuda a detectar alterações, mas não substitui uma âncora independente. Para verificar uma âncora externa, utilize <code>./build/lac verify --anchor CAMINHO</code> no terminal. Esta interface não afirma validação externa.</p></div></section>
       <section id="view-reports" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-report"/></svg><div><h2>Relatórios e diários</h2><p>Exportação em Markdown com datas de ocorrência, fontes e hashes de eventos.</p></div></div></div><form id="reportForm" class="surface form-grid"><label>De<input name="from" type="date"></label><label>Até<input name="to" type="date"></label><label class="span2">Projeto<select name="project" id="reportProject"><option value="">Todos os projetos</option></select></label><button class="primary self-end" type="submit"><svg><use href="#ic-download"/></svg> Exportar Markdown</button></form><div class="info-panel"><strong>Critério de exportação</strong><p>O diário registra até 5.000 eventos por exportação. Não inclui automaticamente conversas privadas em outras aplicações ou alterações fora das fontes cadastradas.</p></div></section>
-      <section id="view-settings" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-settings"/></svg><div><h2>Preferências locais</h2><p>Estas opções afetam somente este navegador.</p></div></div></div><div class="surface settings-panel"><label><input type="checkbox" id="preferCompact"> Exibição compacta dos registros</label><label><input type="checkbox" id="preferRecent"> Abrir linha do tempo com filtro dos últimos sete dias</label><p class="support">As preferências ficam armazenadas no navegador; não alteram o banco de eventos nem executam varreduras.</p></div></section>
-      <section id="view-about" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-info"/></svg><div><h2>Sobre o laboratório</h2><p>LAC v0.1.2 · Memória operacional, relacional e evolutiva.</p></div></div></div><div class="info-panel"><strong>Sempre pronto. Sempre incompleto.</strong><p>O LAC ajuda a observar, preservar e recuperar trajetórias de trabalho sem LLM, sem telemetria e sem depender de serviços externos. REA, RIT e MPRR são referenciais metodológicos, não modelos automáticos de causalidade.</p></div></section>
+      <section id="view-integrations" class="view content-card" hidden>
+        <div class="section-heading"><div><h2>Integrações opcionais</h2><p>Consultas auxiliares não são importadas automaticamente para o histórico.</p></div><button id="btnIntegrationsRefresh" class="secondary" type="button">Atualizar estado</button></div>
+        <div id="integrationStatus" class="events"></div>
+        <div class="card-grid">
+          <section class="surface info-panel"><h3>Busca documental · Recoll</h3>
+            <form id="recollConfig" class="form-grid"><input type="hidden" name="integration" value="recoll"><label class="integration-toggle span2"><input name="enabled" type="checkbox"> Habilitar consultas</label><label class="span2">Diretório de configuração Recoll<input name="config_dir" placeholder="/home/usuario/.recoll-lac"></label><label class="span2">Pastas autorizadas, uma por linha<textarea name="roots" rows="3" placeholder="/home/usuario/Documentos/projeto"></textarea></label><button class="secondary" type="submit">Salvar configuração</button></form>
+            <form id="recollSearch" class="integration-query"><label>Buscar conteúdo<input name="q" required maxlength="1000" placeholder="Termos no índice autorizado"></label><button class="primary" type="submit">Buscar documentos</button></form>
+            <div id="documentResults" class="events"></div>
+          </section>
+          <section class="surface info-panel"><h3>Contexto operacional · ActivityWatch</h3>
+            <form id="activityConfig" class="form-grid"><input type="hidden" name="integration" value="activitywatch"><label class="integration-toggle span2"><input name="enabled" type="checkbox"> Habilitar consultas</label><label class="span2">API local no computador do servidor<input name="url" value="http://127.0.0.1:5600"></label><label class="span2">Buckets autorizados, um por linha<textarea name="buckets" rows="3"></textarea></label><button class="secondary" type="submit">Salvar configuração</button></form>
+            <form id="activityQuery" class="integration-query"><label>Bucket autorizado<select name="bucket" id="activityBucket" required></select></label><button class="primary" type="submit">Consultar últimas 24h</button></form>
+            <p>Resumo limitado a 100 eventos. Intervalos reportados podem se sobrepor; não representam produtividade, tempo por projeto ou tempo corrigido por ausência.</p><div id="activityResults" class="events"></div>
+          </section>
+        </div>
+        <div class="info-panel"><h3>Administração por LLM · API/MCP</h3><p>Um cliente MCP compatível inicia <code>python3 scripts/lac_mcp.py</code>. A leitura é padrão; <code>--allow-write</code> habilita administração. Registros da LLM têm autoria indicada e relações permanecem candidatas.</p><p>O conteúdo consultado pode ser enviado ao provedor do modelo pelo cliente escolhido. O LAC não chama modelos diretamente.</p></div>
+      </section>
+      <section id="view-settings" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-settings"/></svg><div><h2>Preferências locais</h2><p>Estas opções afetam somente este navegador.</p></div></div></div><div class="surface settings-panel"><button id="btnAccess" class="secondary" type="button">Configurar token de acesso</button><label><input type="checkbox" id="preferCompact"> Exibição compacta dos registros</label><label><input type="checkbox" id="preferRecent"> Abrir linha do tempo com filtro dos últimos sete dias</label><p class="support">As preferências ficam armazenadas no navegador; não alteram o banco de eventos nem executam varreduras.</p></div></section>
+      <section id="view-about" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-info"/></svg><div><h2>Sobre o laboratório</h2><p>LAC v0.1.3 · Memória operacional, relacional e evolutiva.</p></div></div></div><div class="info-panel"><strong>Sempre pronto. Sempre incompleto.</strong><p>O LAC ajuda a observar, preservar e recuperar trajetórias de trabalho com núcleo determinístico, sem telemetria. Administração por LLM via MCP e consultas ao Recoll e ActivityWatch são opcionais. REA, RIT e MPRR são referenciais metodológicos, não modelos automáticos de causalidade.</p></div></section>
     </div>
     <footer>REA — Reflexividade Epistêmica e Adaptativa &nbsp; | &nbsp; RIT — Reflexividade sob Integridade Temporal &nbsp; | &nbsp; MPRR — Percepção Relacional da Realidade<br><small>Os eventos observados demonstram alterações e registros; não demonstram, por si só, resultados científicos.</small></footer>
   </main>

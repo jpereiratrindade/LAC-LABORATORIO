@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(lac VERSION 0.1.2 LANGUAGES CXX)
+project(lac VERSION 0.1.3 LANGUAGES CXX)
 
 # gcc 14 and recent clang accept -std=c++2c; gcc 16 accepts the same dialect.
 # Avoid features absent from current compiler libraries; source is C++26-ready.
@@ -9,7 +9,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(SQLite3 REQUIRED)
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
-add_executable(lac src/main.cpp src/core.cpp src/server.cpp)
+add_executable(lac src/main.cpp src/core.cpp src/server.cpp src/integrations.cpp)
 target_include_directories(lac PRIVATE include)
 # FindSQLite3 renamed its imported target in newer CMake releases.
 # Use the modern target where supported; retain compatibility with CMake 3.25.
@@ -22,6 +22,8 @@ target_link_libraries(lac PRIVATE ${LAC_SQLITE_TARGET} OpenSSL::Crypto)
 target_compile_options(lac PRIVATE -Wall -Wextra -Wpedantic -Wconversion -Wshadow)
 install(TARGETS lac RUNTIME DESTINATION bin)
 install(DIRECTORY web/ DESTINATION share/lac/web)
+install(PROGRAMS scripts/lac_mcp.py scripts/lac_integrations.py DESTINATION share/lac/scripts)
+install(FILES systemd/lac.service systemd/lac-lan.service DESTINATION share/lac/systemd)
 include(CTest)
 if(BUILD_TESTING)
   find_package(Python3 COMPONENTS Interpreter REQUIRED)

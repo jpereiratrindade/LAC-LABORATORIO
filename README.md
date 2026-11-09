@@ -1,19 +1,19 @@
 # LAC — Laboratório de Continuidade
 
-**Interface v0.1.2:** painel integrado com navegação completa, ações reais, marca filamentada em SVG e preferências locais. Nenhuma migração do banco. Consulte [`docs/LAC-IDV-002_v0.1.2.md`](docs/LAC-IDV-002_v0.1.2.md).
+**v0.1.3:** integrações opcionais com Recoll e ActivityWatch, administração por API/MCP e acesso pela rede local com token. Nenhuma migração do banco. Consulte [`docs/LAC-API-MCP-001_v0.1.3.md`](docs/LAC-API-MCP-001_v0.1.3.md).
 
 > **Simples, leve. Sempre pronto. Sempre incompleto.**
 >
 > `LAC-BASES-001` · v0.1.0 · 2026-11-09
 
-Sistema **local e independente** de memória de trabalho: observa mudanças no Git e em diretórios documentais autorizados, preserva eventos temporalizados e permite retomar projetos por uma interface web. **Não utiliza LLM, Codex, Gemini, APIs externas, nuvem ou telemetria.**
+Sistema **local e independente** de memória de trabalho: observa mudanças no Git e em diretórios documentais autorizados, preserva eventos temporalizados e permite retomar projetos por uma interface web. **O núcleo não executa LLM nem envia telemetria.** Clientes LLM podem administrá-lo opcionalmente por MCP; Recoll e ActivityWatch são fontes auxiliares locais. O cliente LLM escolhido pode enviar os dados consultados ao provedor do modelo.
 
 ## Requisitos
 
 - Linux / Fedora, Git, CMake >= 3.25 e Ninja (ou Make)
 - Compilador com suporte ao modo **C++26** (`-std=c++2c` / `-std=c++26`)
 - `sqlite-devel` com extensão **FTS5** e `openssl-devel` para SHA-256
-- Python 3 para os testes; **não é requerido na execução do binário**
+- Python >= 3.9 para testes, MCP e integrações opcionais; **o núcleo C++ funciona sem Python**
 
 No Fedora:
 
@@ -51,7 +51,36 @@ Para uso no diretório do projeto, preceda os comandos com `./build/lac`; após 
 
 Abra **http://127.0.0.1:8765** no navegador. Os caminhos acima são **exemplos**: registre apenas diretórios existentes. É possível registrar novas fontes pela aba **Fontes** na interface web, sem CLI.
 
-A execução de `serve` observa fontes a cada 180 segundos por padrão e oferece um botão **Observar agora**. Não abre portas externas: só `127.0.0.1`.
+A execução de `serve` observa fontes a cada 180 segundos por padrão e oferece um botão **Observar agora**. Por padrão, escuta em `127.0.0.1`. O acesso pela rede local exige `--bind 0.0.0.0` e token, conforme abaixo.
+
+## Rede local, integrações e administração por LLM
+
+Para disponibilizar a interface e a API na rede local:
+
+```bash
+export LAC_API_TOKEN="$(openssl rand -hex 32)"
+./build/lac serve --bind 0.0.0.0 --port 8765 --webroot ./web
+```
+
+Abra `http://IP_DO_SERVIDOR:8765` em outro computador e informe o mesmo token no painel de acesso. O token permanece na sessão do navegador. O endereço `0.0.0.0` representa todas as interfaces IPv4 do servidor; use o IP real para conectar. O servidor exige token com pelo menos 32 caracteres quando o bind não é `127.0.0.1`. O token dá acesso administrativo completo e HTTP não cifra o tráfego: use somente uma rede confiável. Não há autenticação por usuário nem TLS integrado.
+
+Em **Integrações**, configure e habilite cada ferramenta explicitamente:
+
+- **Recoll:** instale e prepare o índice na própria ferramenta; informe o diretório que contém `recoll.conf` e as pastas autorizadas. O LAC consulta `recollq` ou `recoll -t`, filtra os caminhos retornados e não inicia indexação. Trechos dependem dos campos fornecidos pelo índice.
+- **ActivityWatch:** inicie a ferramenta no computador do servidor; habilite a conexão à API loopback e selecione os buckets autorizados. O painel mostra intervalos por aplicativo nas últimas 24h, limitados a 100 eventos. API acessível não garante que os coletores estejam funcionando.
+- Consultas externas não criam eventos no LAC. Um resultado documental pode preencher uma nota para revisão e registro explícito.
+
+Um cliente MCP compatível pode iniciar:
+
+```bash
+python3 scripts/lac_mcp.py --url http://127.0.0.1:8765 --allow-write
+```
+
+O processo herda `LAC_API_TOKEN` do ambiente. Sem `--allow-write`, oferece apenas consultas. A mesma ponte aceita o IP privado de um servidor na LAN, por exemplo `--url http://192.168.1.10:8765`, com token obrigatório. MCP usa `stdio`; a porta 8765 continua sendo a API HTTP, não um endpoint MCP HTTP.
+
+A LLM pode registrar fontes, executar observações, criar notas/decisões/pendências/retificações, declarar encerramentos e propor relações. Seus registros levam autoria **LLM**; relações permanecem **candidatas**. O histórico não pode ser editado nem excluído por essas interfaces.
+
+Contratos da API, configuração genérica do cliente MCP e serviço de rede: [`docs/LAC-API-MCP-001_v0.1.3.md`](docs/LAC-API-MCP-001_v0.1.3.md).
 
 ## Consultas e continuidade
 
@@ -78,7 +107,25 @@ Pelo terminal:
 
 **Guarde o arquivo âncora fora do diretório do banco e preferencialmente em backup independente.** O comando `anchor` não sobrescreve uma âncora existente.
 
-## Inicialização ao entrar no desktop (opcional)
+## Inicialização no boot, independente de login
+
+```bash
+./scripts/install_service.sh
+```
+
+O instalador compila, testa, instala em `~/.local`, cria um token privado em `~/.config/lac/server.env` e habilita `lac-lan.service`. Usa o systemd do usuário com **linger**, que inicia no boot e mantém o serviço após logout. Não depende do repositório nem de um disco montado pela sessão. Se linger ainda não estiver habilitado, `loginctl enable-linger` pode exigir autenticação administrativa do sistema.
+
+```bash
+loginctl show-user "$USER" -p Linger
+systemctl --user status lac-lan.service
+journalctl --user -u lac-lan.service -n 50
+```
+
+O token para o navegador está no arquivo privado `~/.config/lac/server.env`. A porta é 8765, com bind `0.0.0.0`. O firewall não é modificado. Para interromper e desabilitar o serviço: `systemctl --user disable --now lac-lan.service`.
+
+Use apenas um serviço na porta 8765; encerre uma execução manual antes de instalar. Recoll e ActivityWatch continuam opcionais: fontes em discos removíveis e coletores da sessão podem ficar indisponíveis antes do login.
+
+## Serviço restrito à sessão (alternativa)
 
 Depois de `cmake --install build --prefix "$HOME/.local"`:
 
@@ -107,8 +154,8 @@ O LAC não lê conteúdo interno de PDFs/DOCX nem integra conversas privadas do 
 
 ## Segurança e limites explícitos da v0.1
 
-- Escuta **apenas no loopback IPv4**, valida `Host` e `Origin`, exige cabeçalho local para ações de escrita, rejeita leitura arbitrária de arquivos, impõe limites de tamanho e não usa shell para executar Git.
-- HTTP **não deve ser exposto por proxy reverso, `--network host`, encaminhamento de portas, túnel ou rede pública**. Não há autenticação multiusuário.
+- Escuta no loopback IPv4 por padrão. `--bind 0.0.0.0` habilita a rede com token obrigatório em todas as rotas `/api/*`. Valida `Host` e `Origin`, exige cabeçalho de escrita, rejeita leitura arbitrária de arquivos e não usa shell para executar Git ou Recoll.
+- HTTP é destinado ao computador local ou à LAN confiável. Não exponha a porta à internet. O token compartilhado não oferece autenticação multiusuário nem criptografia de transporte.
 - Os arquivos observados nunca são modificados. O diretório registrado de documentos pode incluir `.md`, `.tex`, `.pdf`, `.zip`, `.docx`, `.xlsx`, `.json` e outros tipos explícitos no código.
 - Arquivos acima de **32 MiB** não são indexados. Limite de **5.000 arquivos elegíveis por raiz**. Diretórios `.git`, `build`, `output`, `node_modules` e outros técnicos são ignorados. Symlinks não são seguidos.
 - Git: consulta até **1.000 commits por raiz e varredura**. Se houver mais, commits antigos além do limite não são importados.

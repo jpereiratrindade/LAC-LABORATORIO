@@ -1,4 +1,6 @@
 #include "lac/server.hpp"
+#include "lac/integrations.hpp"
+#include <arpa/inet.h>
 #include <algorithm>
 #include <array>
 #include <cerrno>
@@ -94,9 +96,12 @@ void respond(int fd,int status,const std::string& content_type,const std::string
 void json_error(int fd,int status,const std::string& message){
   respond(fd,status,"application/json; charset=utf-8","{\"error\":"+json_string(message)+"}");
 }
-void handle_client(int fd,Sqlite& db,int port,const fs::path& web_root) {
+void handle_client(int fd,Sqlite& db,int port,const fs::path& web_root,
+                   const fs::path& integration_helper,const fs::path& integration_config,
+                   bool network,const std::string& token) {
   timeval timeout{4,0};
   setsockopt(fd,SOL_SOCKET,SO_RCVTIMEO,&timeout,sizeof(timeout));
+  setsockopt(fd,SOL_SOCKET,SO_SNDTIMEO,&timeout,sizeof(timeout));
   std::string buffer;
   std::array<char,8192> chunk{};
   size_t header_end=std::string::npos;
@@ -129,13 +134,29 @@ void handle_client(int fd,Sqlite& db,int port,const fs::path& web_root) {
   const auto host=value(headers,"host");
   const auto local_ip="127.0.0.1:"+std::to_string(port);
   const auto local_name="localhost:"+std::to_string(port);
-  if(host!=local_ip && host!=local_name){json_error(fd,403,"invalid host; localhost only");return;}
+  bool valid_host=host==local_ip||host==local_name;
+  if(network){
+    const auto colon=host.rfind(':');
+    const auto hostname=host.substr(0,colon);in_addr parsed{};
+    valid_host=valid_host||(colon!=std::string::npos&&host.substr(colon+1)==std::to_string(port)
+                         &&inet_pton(AF_INET,hostname.c_str(),&parsed)==1);
+  }
+  if(!valid_host){json_error(fd,403,"invalid host; use an IPv4 address or localhost");return;}
   const auto origin=value(headers,"origin");
-  if(!origin.empty() && origin!="http://"+local_ip && origin!="http://"+local_name){
+  if(!origin.empty() && origin!="http://"+host){
     json_error(fd,403,"cross-origin operation not allowed");return;
   }
   const auto question=target.find('?');
   const std::string path=target.substr(0,question);
+  if(path.starts_with("/api/")&&!token.empty()){
+    const auto supplied=value(headers,"authorization");
+    const auto expected="Bearer "+token;
+    unsigned int difference=static_cast<unsigned int>(supplied.size()!=expected.size());
+    for(size_t i=0;i<expected.size();++i)
+      difference|=static_cast<unsigned int>(static_cast<unsigned char>(expected[i])^
+        (i<supplied.size()?static_cast<unsigned char>(supplied[i]):0U));
+    if(difference){json_error(fd,403,"API token required");return;}
+  }
   std::string param_str=question==std::string::npos?"":target.substr(question+1);
   if(method=="POST") {
     if(value(headers,"x-lac-local")!="1") {json_error(fd,403,"missing local API header");return;}
@@ -160,6 +181,7 @@ void handle_client(int fd,Sqlite& db,int port,const fs::path& web_root) {
   try {q=parameters(param_str);} catch(const std::exception& e){json_error(fd,400,e.what());return;}
   try {
     std::string output,content_type="application/json; charset=utf-8";int status=200;
+    const bool llm=value(headers,"x-lac-agent")=="mcp";
     if(method=="GET"){
       if(path=="/"||path=="/index.html"){
         output=read_file(web_root/"index.html");content_type="text/html; charset=utf-8";
@@ -173,7 +195,12 @@ void handle_client(int fd,Sqlite& db,int port,const fs::path& web_root) {
         output=read_file(web_root/"assets"/"lac-symbol.svg");content_type="image/svg+xml";
       }else if(path=="/assets/lac-icon-512.png"){
         output=read_file(web_root/"assets"/"lac-icon-512.png");content_type="image/png";
-      }else if(path=="/api/health")output="{\"ok\":true,\"mode\":\"offline_no_llm\"}";
+      }else if(path=="/api/health")output="{\"ok\":true,\"mode\":\"local\",\"version\":\"0.1.3\",\"mcp\":\"stdio_bridge\"}";
+      else if(path=="/api/integrations"||path=="/api/integrations/recoll/search"||path=="/api/integrations/activitywatch/activity"){
+        const std::string action=path=="/api/integrations"?"status":path=="/api/integrations/recoll/search"?"search":"activity";
+        output=integration_request(integration_helper,integration_config,action,param_str);
+        if(output.starts_with("{\"error\":"))status=400;
+      }
       else if(path=="/api/verify"){
         std::string message;
         const bool ok=verify_chain(db,message);
@@ -190,7 +217,10 @@ void handle_client(int fd,Sqlite& db,int port,const fs::path& web_root) {
       else if(path=="/api/todos")output=json_todos(db);
       else {json_error(fd,404,"route not found");return;}
     } else {
-      if(path=="/api/roots"){
+      if(path=="/api/integrations/configure"){
+        output=integration_request(integration_helper,integration_config,"configure",param_str);
+        if(output.starts_with("{\"error\":"))status=400;
+      }else if(path=="/api/roots"){
         const int id=register_root(db,value(q,"project"),value(q,"path"),value(q,"kind"));
         output="{\"id\":"+std::to_string(id)+"}";status=201;
       }else if(path=="/api/scan"){
@@ -198,13 +228,13 @@ void handle_client(int fd,Sqlite& db,int port,const fs::path& web_root) {
         output="{\"new_events\":"+std::to_string(changes)+"}";
       }else if(path=="/api/notes"){
         const auto id=record_note(db,value(q,"project"),value(q,"kind"),value(q,"title"),
-                                  value(q,"body"),value(q,"reference"));
+                                  value(q,"body"),value(q,"reference"),llm);
         output="{\"id\":"+std::to_string(id)+"}";status=201;
       }else if(path=="/api/todos/close"){
-        const auto id=close_todo(db,std::stoll(value(q,"id")));
+        const auto id=close_todo(db,std::stoll(value(q,"id")),llm);
         output="{\"id\":"+std::to_string(id)+"}";status=201;
       }else if(path=="/api/relations"){
-        const auto id=record_relation(db,value(q,"from"),value(q,"to"),value(q,"label"),value(q,"state"));
+        const auto id=record_relation(db,value(q,"from"),value(q,"to"),value(q,"label"),value(q,"state"),llm);
         output="{\"id\":"+std::to_string(id)+"}";status=201;
       }else {json_error(fd,404,"route not found");return;}
     }
@@ -216,22 +246,27 @@ void handle_client(int fd,Sqlite& db,int port,const fs::path& web_root) {
   }
 }
 } // namespace
-void serve(Sqlite& db,int port,int scan_every,const fs::path& web_root){
+void serve(Sqlite& db,int port,int scan_every,const fs::path& web_root,
+           const fs::path& integration_helper,const fs::path& integration_config,
+           const std::string& bind_address,const std::string& token){
   if(port<1024||port>65535)throw std::runtime_error("port must be 1024-65535");
   if(scan_every<0||scan_every>86400)throw std::runtime_error("scan interval must be 0-86400 seconds");
+  const bool network=bind_address!="127.0.0.1";
+  if(network&&token.size()<32)throw std::runtime_error("network access requires LAC_API_TOKEN with at least 32 characters");
+  if(token.find_first_of("\r\n")!=std::string::npos)throw std::runtime_error("invalid API token");
   if(!fs::is_regular_file(web_root/"index.html"))throw std::runtime_error("web UI assets missing: "+web_root.string());
-  const int listener=socket(AF_INET,SOCK_STREAM,0);
+  const int listener=socket(AF_INET,SOCK_STREAM|SOCK_CLOEXEC,0);
   if(listener<0)throw std::runtime_error("socket failed");
   int reuse=1;setsockopt(listener,SOL_SOCKET,SO_REUSEADDR,&reuse,sizeof(reuse));
   sockaddr_in address{};address.sin_family=AF_INET;
-  address.sin_addr.s_addr=htonl(INADDR_LOOPBACK);
+  if(inet_pton(AF_INET,bind_address.c_str(),&address.sin_addr)!=1){close(listener);throw std::runtime_error("--bind requires an IPv4 address");}
   address.sin_port=htons(static_cast<uint16_t>(port));
   if(bind(listener,reinterpret_cast<sockaddr*>(&address),sizeof(address))<0||listen(listener,16)<0){
-    close(listener);throw std::runtime_error("cannot bind to 127.0.0.1:"+std::to_string(port));
+    close(listener);throw std::runtime_error("cannot bind to "+bind_address+":"+std::to_string(port));
   }
   auto old_int=std::signal(SIGINT,on_signal);
   auto old_term=std::signal(SIGTERM,on_signal);
-  std::cout<<"LAC: http://127.0.0.1:"<<port<<" (somente local, sem LLM)\n"<<std::flush;
+  std::cout<<"LAC: http://"<<bind_address<<":"<<port<<" (API; MCP opcional)\n"<<std::flush;
   auto next_scan=std::chrono::steady_clock::now();
   while(!stop_requested){
     if(scan_every>0&&std::chrono::steady_clock::now()>=next_scan){
@@ -242,8 +277,8 @@ void serve(Sqlite& db,int port,int scan_every,const fs::path& web_root){
     pollfd pfd{listener,POLLIN,0};
     const int n=poll(&pfd,1,500);
     if(n>0&&(pfd.revents&POLLIN)){
-      int client=accept(listener,nullptr,nullptr);
-      if(client>=0){handle_client(client,db,port,web_root);close(client);}
+      int client=accept4(listener,nullptr,nullptr,SOCK_CLOEXEC);
+      if(client>=0){handle_client(client,db,port,web_root,integration_helper,integration_config,network,token);close(client);}
     }else if(n<0&&errno!=EINTR)break;
   }
   close(listener);std::signal(SIGINT,old_int);std::signal(SIGTERM,old_term);

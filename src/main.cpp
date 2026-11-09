@@ -24,7 +24,7 @@ std::map<std::string,std::string> arguments(int argc,char** argv,int begin){
   return out;
 }
 void help(){
-  std::cout<<R"(LAC - Laboratorio de Continuidade v0.1.0
+  std::cout<<R"(LAC - Laboratorio de Continuidade v0.1.3
 Uso:
   lac init [--db CAMINHO]
   lac register --project NOME --path DIRETORIO --kind git|docs [--db CAMINHO]
@@ -34,6 +34,10 @@ Uso:
   lac report --from AAAA-MM-DD --to AAAA-MM-DD --out RELATORIO.md [--db CAMINHO]
   lac stats [--db CAMINHO]
   lac serve [--db CAMINHO] [--port 8765] [--scan-every 180] [--webroot WEB]
+            [--bind 127.0.0.1|0.0.0.0] [--integration-helper SCRIPT] [--integration-config ARQUIVO]
+
+Rede local: --bind 0.0.0.0 exige LAC_API_TOKEN (minimo 32 caracteres) no ambiente.
+MCP opcional: python3 scripts/lac_mcp.py [--url http://127.0.0.1:8765] [--allow-write]
 
 Banco padrao: ~/.local/share/lac/lac.db (ou $XDG_DATA_HOME/lac/lac.db)
 Os diretorios precisam ser registrados explicitamente; nenhuma observacao automatica do home.
@@ -53,6 +57,15 @@ path web_root(const std::map<std::string,std::string>& a,const path& executable)
     if(lac::fs::is_regular_file(candidate/"index.html"))return candidate;
   }
   throw std::runtime_error("web files not found, set --webroot ./web");
+}
+path integration_helper(const std::map<std::string,std::string>& a,const path& executable){
+  if(a.contains("--integration-helper"))return a.at("--integration-helper");
+  const auto near_binary=lac::fs::weakly_canonical(executable).parent_path();
+  for(const auto& candidate:{near_binary/"../scripts/lac_integrations.py",
+                            near_binary/"../share/lac/scripts/lac_integrations.py"}){
+    if(lac::fs::is_regular_file(candidate))return lac::fs::weakly_canonical(candidate);
+  }
+  return near_binary/"../share/lac/scripts/lac_integrations.py";
 }
 }
 int main(int argc,char** argv){
@@ -94,7 +107,10 @@ int main(int argc,char** argv){
     }else if(cmd=="serve"){
       const int port=std::stoi(option(args,"--port","8765"));
       const int seconds=std::stoi(option(args,"--scan-every","180"));
-      lac::serve(db,port,seconds,web_root(args,argv[0]));
+      const char* token=std::getenv("LAC_API_TOKEN");
+      lac::serve(db,port,seconds,web_root(args,argv[0]),integration_helper(args,argv[0]),
+                 option(args,"--integration-config",file.string()+".integrations.json"),
+                 option(args,"--bind","127.0.0.1"),token?token:"");
     }else {help();return 2;}
     return 0;
   }catch(const std::exception& e){

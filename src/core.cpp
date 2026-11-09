@@ -389,7 +389,7 @@ bool verify_chain(Sqlite& db,std::string& error) {
   return true;
 }
 int64_t record_note(Sqlite& db,const std::string& project,const std::string& kind,
-  const std::string& title,const std::string& body,const std::string& reference){
+  const std::string& title,const std::string& body,const std::string& reference,bool llm){
   if(kind!="note"&&kind!="decision"&&kind!="todo"&&kind!="correction")
     throw std::runtime_error("kind must be note, decision, todo or correction");
   if(title.empty()||title.size()>200||body.size()>8000||reference.size()>3000)
@@ -397,29 +397,33 @@ int64_t record_note(Sqlite& db,const std::string& project,const std::string& kin
   Transaction tx(db);
   Event e;e.project_id=project_id(db,project);e.kind=kind;e.title=title;e.body=body;
   e.source_type="manual";e.source_ref=reference.empty()?"manual-entry":reference;
+  if(llm)e.source_ref="llm:mcp:"+e.source_ref;
   e.occurred_at=utc_now();e.evidence_state="declared";
   // Unique explicit capture ID; no deduplication of distinct human declarations.
   e.dedupe_key="manual:"+sha256(utc_now()+title+body+std::to_string(sqlite3_total_changes(db.db))+
                         std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
   auto id=append_event(db,e);tx.commit();return id;
 }
-int64_t close_todo(Sqlite& db,int64_t todo_id) {
+int64_t close_todo(Sqlite& db,int64_t todo_id,bool llm) {
   Transaction tx(db);
   Stmt get(db.db,"SELECT project_id,title FROM events WHERE id=? AND kind='todo'");
   get.bind(1,todo_id);
   if(get.step()!=SQLITE_ROW)throw std::runtime_error("todo does not exist");
   const auto project=static_cast<int>(get.number(0));const auto title=get.str(1);
-  Stmt done(db.db,"SELECT 1 FROM events WHERE kind='todo_closed' AND source_ref=?");
+  Stmt done(db.db,"SELECT 1 FROM events WHERE kind='todo_closed' AND (source_ref=? OR source_ref='llm:mcp:' || ?)");
   done.bind(1,"todo:"+std::to_string(todo_id));
+  done.bind(2,"todo:"+std::to_string(todo_id));
   if(done.step()==SQLITE_ROW)throw std::runtime_error("todo already closed");
   Event e;e.project_id=project;e.kind="todo_closed";e.title="Concluído: "+title;
   e.body="Encerramento declarado pelo usuário; não valida automaticamente a execução.";
   e.source_type="manual";e.source_ref="todo:"+std::to_string(todo_id);
+  if(llm){e.source_ref="llm:mcp:"+e.source_ref;e.body="Encerramento declarado por LLM via MCP; não valida automaticamente a execução.";}
   e.occurred_at=utc_now();e.evidence_state="declared";e.dedupe_key="todo_closed:"+std::to_string(todo_id);
   const auto id=append_event(db,e);tx.commit();return id;
 }
 int64_t record_relation(Sqlite& db,const std::string& from,const std::string& to,
-  const std::string& label,const std::string& state){
+  const std::string& label,const std::string& state,bool llm){
+  if(llm&&state!="candidate")throw std::runtime_error("LLM relations must remain candidate");
   if(from==to||label.empty()||label.size()>300||
      (state!="candidate"&&state!="user_confirmed"))
     throw std::runtime_error("invalid relation; state must be candidate or user_confirmed");
@@ -428,6 +432,7 @@ int64_t record_relation(Sqlite& db,const std::string& from,const std::string& to
   Event e;e.project_id=a;e.kind="relation";e.title=from+" ↔ "+to;
   e.body=label+" ["+state+"]";e.source_type="manual";
   e.source_ref="relation:"+from+":"+to;e.occurred_at=utc_now();
+  if(llm)e.source_ref="llm:mcp:"+e.source_ref;
   e.evidence_state=state=="candidate"?"proposed":"declared";
   e.dedupe_key="relation:"+sha256(utc_now()+from+to+label+state+
                        std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
@@ -452,7 +457,7 @@ std::string json_string(const std::string& s){return '"'+json_escape(s)+'"';}
 std::string json_event(const Event& e) {
   return "{\"id\":"+std::to_string(e.id)+",\"project\":"+json_string(e.project)+
     ",\"kind\":"+json_string(e.kind)+",\"title\":"+json_string(e.title)+
-    ",\"body\":"+json_string(e.body)+",\"source_type\":"+json_string(e.source_type)+
+    ",\"body\":"+json_string(e.body)+",\"actor\":"+json_string(e.source_ref.starts_with("llm:mcp:")?"llm":e.source_type=="manual"?"user":"observer")+",\"source_type\":"+json_string(e.source_type)+
     ",\"source_ref\":"+json_string(e.source_ref)+",\"occurred_at\":"+json_string(e.occurred_at)+
     ",\"recorded_at\":"+json_string(e.recorded_at)+",\"evidence_state\":"+
     json_string(e.evidence_state)+",\"event_hash\":"+json_string(e.event_hash)+"}";
@@ -499,23 +504,26 @@ std::string json_projects(Sqlite& db){
   return out+"]";
 }
 std::string json_relations(Sqlite& db){
-  Stmt s(db.db,"SELECT r.id,a.name,b.name,r.label,r.state,r.event_id FROM relations r "
-    "JOIN projects a ON a.id=r.from_project JOIN projects b ON b.id=r.to_project ORDER BY r.id DESC LIMIT 200");
+  Stmt s(db.db,"SELECT r.id,a.name,b.name,r.label,r.state,r.event_id,e.source_ref FROM relations r "
+    "JOIN projects a ON a.id=r.from_project JOIN projects b ON b.id=r.to_project "
+    "JOIN events e ON e.id=r.event_id ORDER BY r.id DESC LIMIT 200");
   std::string out="[";bool first=true;
   while(s.step()==SQLITE_ROW){if(!first)out+=",";first=false;
     out+="{\"id\":"+std::to_string(s.number(0))+",\"from\":"+json_string(s.str(1))+
       ",\"to\":"+json_string(s.str(2)) + ",\"label\":"+json_string(s.str(3))+
-      ",\"state\":"+json_string(s.str(4)) + ",\"event_id\":"+std::to_string(s.number(5))+"}";}
+      ",\"state\":"+json_string(s.str(4)) + ",\"actor\":"+json_string(s.str(6).starts_with("llm:mcp:")?"llm":"user")+
+      ",\"event_id\":"+std::to_string(s.number(5))+"}";}
   return out+"]";
 }
 std::string json_todos(Sqlite& db){
-  Stmt s(db.db,"SELECT e.id,p.name,e.title,e.body,e.occurred_at FROM events e JOIN projects p ON p.id=e.project_id "
+  Stmt s(db.db,"SELECT e.id,p.name,e.title,e.body,e.occurred_at,e.source_ref FROM events e JOIN projects p ON p.id=e.project_id "
     "WHERE e.kind='todo' AND NOT EXISTS(SELECT 1 FROM events x WHERE x.kind='todo_closed' "
-    "AND x.source_ref=('todo:' || e.id)) ORDER BY e.occurred_at DESC LIMIT 200");
+    "AND x.dedupe_key=('todo_closed:' || e.id)) ORDER BY e.occurred_at DESC LIMIT 200");
   std::string out="[";bool first=true;
   while(s.step()==SQLITE_ROW){if(!first)out+=",";first=false;
     out+="{\"id\":"+std::to_string(s.number(0))+",\"project\":"+json_string(s.str(1))+
       ",\"title\":"+json_string(s.str(2)) + ",\"body\":"+json_string(s.str(3))+
+      ",\"actor\":"+json_string(s.str(5).starts_with("llm:mcp:")?"llm":"user")+
       ",\"occurred_at\":"+json_string(s.str(4))+"}";}
   return out+"]";
 }
@@ -523,7 +531,7 @@ std::string json_stats(Sqlite& db){
   Stmt s(db.db,"SELECT (SELECT COUNT(*) FROM projects),(SELECT COUNT(*) FROM roots),"
     "(SELECT COUNT(*) FROM events),(SELECT COUNT(*) FROM relations),"
     "(SELECT COUNT(*) FROM events WHERE kind='todo' AND NOT EXISTS(SELECT 1 FROM events x "
-    "WHERE x.kind='todo_closed' AND x.source_ref=('todo:' || events.id)))");
+    "WHERE x.kind='todo_closed' AND x.dedupe_key=('todo_closed:' || events.id)))");
   s.step();
   return "{\"projects\":"+std::to_string(s.number(0)) + ",\"roots\":"+std::to_string(s.number(1))+
     ",\"events\":"+std::to_string(s.number(2)) + ",\"relations\":"+std::to_string(s.number(3))+
