@@ -1,6 +1,6 @@
 # Plano de evolução — laboratório visual e assistente local
 
-Data: 2026-11-09. Estado: planejamento registrado; implementação não iniciada.
+Data: 2026-11-09. Estado: T01 e T04 concluídas; T02 em avaliação visual.
 Base de código inspecionada: `7b3338e088aec0710646e35b5ad115de06302bf7`.
 Entrada para outro assistente: [CONTINUIDADE.md](CONTINUIDADE.md).
 Arquitetura proposta: [ADR-004](ADR-004-ASSISTENTE-LOCAL.md).
@@ -152,7 +152,10 @@ Tarefas podem ser divididas em subitens quando não couberem numa sessão.
 
 ### T01 — Fechar contratos e inventário
 
-- Estado: pendente. Dependência: T00.
+- Estado: concluída. Dependência: T00.
+- Entrega: [contratos e inventário](LAC-ASSISTENTE-CONTRATOS-001.md).
+- Host confirmado pelo usuário: estação atual. Modelo inicial avaliado:
+  `qwen2.5:7b`, já instalado no Ollama; ver [avaliação](avaliacoes/2026-11-09-ollama.md).
 - Identificar host de inferência: estação ou labeco-srv; medir RAM, CPU,
   GPU/VRAM e espaço no host efetivo, sem assumir que são iguais.
 - Especificar feed por cursor/ID, referências estáveis, relações tipadas,
@@ -165,7 +168,10 @@ Tarefas podem ser divididas em subitens quando não couberem numa sessão.
 
 ### T02 — Protótipo visual navegável
 
-- Estado: pendente. Dependência: T01 nos conceitos de dados.
+- Estado: em andamento. Dependência: T01 nos conceitos de dados.
+- Entrega: [prévia navegável](../prototypes/laboratorio/README.md), implementada
+  com dados fictícios e verificada em navegador desktop/celular. Avaliação
+  com pessoa usuária ainda pendente; não marcar concluída só pelos testes.
 - Desenhar laboratório, vizinhança, comparação, painel do assistente e memória.
 - Usar um percurso completo e dados fictícios identificados; manter seleção
   entre perspectivas. Definir arranjo, zoom e ações contextuais.
@@ -187,7 +193,11 @@ Tarefas podem ser divididas em subitens quando não couberem numa sessão.
 
 ### T04 — Adaptador de inferência local
 
-- Estado: pendente. Dependência: T01; pode anteceder T03.
+- Estado: concluída. Dependência: T01; pode anteceder T03.
+- Entrega: `scripts/lac_local_llm.py`, contrato de síntese, 16 testes simulados,
+  três casos reais com dados sintéticos e instalação em prefixo temporário.
+- Evidências: [avaliação local](avaliacoes/2026-11-09-ollama.md).
+- Integração ao serviço e inferência contínua continuam nas tarefas seguintes.
 - Adaptador Ollama com timeout, limites, cancelamento e JSON schema validado.
 - Loopback, modo local, sem fallback em nuvem. Health distingue processo
   disponível de modelo carregado e pronto para inferência.
@@ -282,9 +292,15 @@ cmake --build build --parallel 2
 ctest --test-dir build --output-on-failure
 ```
 
-Os testes registrados hoje são `lac_integration` e `lac_auth_policy`.
+Os testes registrados são `lac_integration`, `lac_auth_policy` e `lac_local_llm`.
 Adicionar testes dos novos contratos conforme as tarefas, com modelo/SMTP
 simulados por padrão. Não usar conteúdo privado em fixtures versionadas.
+
+Verificação visual opcional: `node tests/check_prototype.cjs`, com Playwright
+disponível e a prévia local na porta 8876. `LAC_PLAYWRIGHT_MODULE` pode indicar
+uma instalação externa do pacote. Capturas ficam em `.cache/prototype` (fora
+do Git). Avaliação real explícita: `python3 tests/evaluate_local_llm.py --model
+qwen2.5:7b`; não integra o CTest nem baixa modelos.
 
 Conjunto de avaliação inicial: notas, alterações Markdown, mensagens Git,
 retificações, documentos sem extração e relações ambíguas. Incluir conteúdo

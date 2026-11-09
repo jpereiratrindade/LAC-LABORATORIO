@@ -1,5 +1,16 @@
 # CHANGELOG — LAC
 
+## Em desenvolvimento — laboratório visual e assistente local (2026-11-09)
+
+- Contratos para feed incremental, worker limitado, memória e relações tipadas;
+  implementação desses endpoints ainda pendente.
+- Prévia visual independente com dados fictícios, mapa, trajetória, comparação,
+  revisão de vínculos e preferências demonstrativas persistidas no navegador.
+- Adaptador Ollama local com saída estruturada, validação de referências,
+  limites, timeout e cancelamento; sem coleta de arquivos ou escrita no banco.
+- Testes simulados, verificação de navegador e avaliação inicial de modelo real
+  com dados sintéticos. O serviço operacional atual não foi substituído.
+
 ## v0.1.0 — 2026-11-09
 
 - Núcleo C++26 com SQLite3/FTS5, observação Git e documentos, SHA-256 via OpenSSL.

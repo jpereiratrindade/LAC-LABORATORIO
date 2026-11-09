@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>LAC · Laboratório visual — prévia</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <svg class="sprite" aria-hidden="true"><defs>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="m9 15 6-6M8 17l-1 1a4 4 0 0 1-6-6l5-5a4 4 0 0 1 6 0m0 10a4 4 0 0 0 6 0l5-5a4 4 0 0 0-6-6l-1 1" transform="translate(1 0) scale(.9)"/></symbol>
+    <symbol id="i-time" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zm0 0v6h6M8 13h8m-8 4h5"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5zM20 2v4m-2-2h4"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="m8 3 8 0-1 6 4 4H5l4-4zM12 13v8"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/></symbol>
+    <symbol id="i-memory" viewBox="0 0 24 24"><path d="M9 3a4 4 0 0 0-4 4 4 4 0 0 0-2 7 4 4 0 0 0 6 6l3-2 3 2a4 4 0 0 0 6-6 4 4 0 0 0-2-7 4 4 0 0 0-7-3 4 4 0 0 0-3-1zM12 4v14M7 9l5 3 5-3"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+    <symbol id="i-move" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3m12-6 3 3-3 3"/></symbol>
+    <symbol id="i-git" viewBox="0 0 24 24"><path d="M7 4v10a5 5 0 0 0 10 0v-2M7 8h6a4 4 0 0 0 4-4"/><circle cx="7" cy="3" r="2"/><circle cx="17" cy="3" r="2"/><circle cx="17" cy="11" r="2"/></symbol>
+  </defs></svg>
+  <div class="shell">
+    <nav class="rail" aria-label="Navegação principal">
+      <a class="brand" href="#" aria-label="LAC — voltar ao laboratório"><span>la<span class="brand-c">c</span></span></a>
+      <button class="rail-button active" data-view="laboratory" aria-label="Laboratório"><svg><use href="#i-grid"/></svg><span>Laboratório</span></button>
+      <button class="rail-button" data-view="connections" aria-label="Conexões"><svg><use href="#i-link"/></svg><span>Conexões</span></button>
+      <button class="rail-button" data-view="trajectory" aria-label="Trajetória"><svg><use href="#i-time"/></svg><span>Trajetória</span></button>
+      <button class="rail-button" data-view="bench" aria-label="Bancada"><svg><use href="#i-doc"/></svg><span>Bancada</span></button>
+      <div class="rail-bottom"><button class="rail-button" id="openMemory"><svg><use href="#i-memory"/></svg><span>Memória</span></button><span class="avatar" title="Pessoa demonstrativa">JP</span></div>
+    </nav>
+
+    <header class="topbar">
+      <div class="breadcrumbs"><strong>Laboratório de Continuidade</strong><span>/</span><span>Coleta em campo</span></div>
+      <div class="top-actions"><button class="search-trigger" id="openSearch"><svg><use href="#i-search"/></svg><span>Encontrar no contexto</span><kbd>/</kbd></button><button class="button primary" id="openCapture"><svg><use href="#i-plus"/></svg><span>Registrar</span></button></div>
+    </header>
+
+    <main class="workspace" id="main">
+      <div class="preview-label"><span class="dot amber"></span>Prévia navegável · todos os dados são fictícios<span class="preview-label-end">T02 · design em avaliação</span></div>
+      <div class="workspace-heading"><div><p class="eyebrow">SEU TRABALHO, EM CONTINUIDADE</p><h1 id="viewTitle">O protocolo mudou.<br>O contexto está aqui.</h1><p class="heading-note" id="viewNote">Uma alteração observada. Uma decisão próxima. Uma conexão para examinar.</p></div><div class="prepared"><svg><use href="#i-spark"/></svg><span>Contexto preparado<small>Exemplo de automação local</small></span></div></div>
+
+      <div class="project-switcher" id="projectSwitcher"><button class="project-chip selected" id="focusProject"><span class="project-mark">C</span><span>Coleta em campo<small>Frente em foco</small></span><svg><use href="#i-check"/></svg></button><button class="project-chip" id="relatedProject"><span class="project-mark amber-bg">M</span><span>Metodologia<small>Conectada por uma proposta</small></span><svg><use href="#i-link"/></svg></button></div>
+
+      <div class="view-toolbar"><div class="tabs" role="group" aria-label="Perspectiva do contexto"><button data-view="laboratory" class="active">Visão do conjunto</button><button data-view="connections">Relações</button><button data-view="trajectory">No tempo</button><button data-view="bench">Comparar</button></div><button class="quiet-button" id="depthButton" aria-pressed="false">Expandir vizinhança <span>+</span></button></div>
+      <div id="stateBanner" class="state-banner" role="status" hidden></div>
+
+      <section class="map-surface" id="mapSurface" aria-label="Mapa do contexto">
+        <div class="map-caption"><span class="dot teal"></span><span id="mapCaption">Coleta em campo · vizinhança selecionada</span></div>
+        <div id="mapViewport" class="map-viewport" tabindex="0" aria-label="Mapa navegável. Use as setas para mover; selecione um cartão para examinar.">
+          <div id="world" class="world"><svg id="edges" viewBox="0 0 1080 650" aria-label="Relações entre materiais"></svg><div id="nodes"></div></div>
+        </div>
+        <div class="map-footer"><div class="legend"><span><i class="legend-line"></i>Vínculo registrado</span><span><i class="legend-line dashed"></i>Proposta da LLM</span></div><div class="map-controls"><button id="zoomOut" aria-label="Diminuir zoom">−</button><output id="zoomValue" aria-label="Zoom">100%</output><button id="zoomIn" aria-label="Aumentar zoom">+</button><span class="control-divider"></span><button id="fitSelection" title="Enquadrar seleção">Focar</button><button id="fitAll" title="Ver todo o conjunto">Conjunto</button></div></div>
+      </section>
+
+      <section id="trajectory" class="alternate-surface" hidden aria-label="Trajetória do contexto"></section>
+      <section id="bench" class="alternate-surface" hidden aria-label="Comparação de materiais"></section>
+      <section id="emptyState" class="empty-state" hidden><svg><use href="#i-grid"/></svg><h2 id="emptyTitle">Seu laboratório começa com uma fonte.</h2><p id="emptyText">Cadastre uma fonte autorizada para preparar seu primeiro contexto.</p><button class="button primary" id="restoreFromEmpty">Voltar ao exemplo</button></section>
+      <footer class="workspace-footer"><span>Observação ≠ interpretação · relações mantêm origem e autoria</span><button class="text-button" id="resetDemo">Restaurar exemplo</button></footer>
+    </main>
+
+    <aside class="inspector" aria-label="Assistente e detalhe da seleção">
+      <div class="assistant-heading"><span class="assistant-mark"><svg><use href="#i-spark"/></svg></span><div><strong>Seu assistente</strong><small>Continuidade, com contexto</small></div><span class="status-light" title="Modo demonstrativo"></span></div>
+      <div class="assistant-demo">Assistente demonstrativo · sem inferência nesta tela</div>
+      <div id="inspectorContent" class="inspector-content"></div>
+      <div class="assistant-question"><label for="question">Explore este contexto</label><form id="questionForm"><input id="question" placeholder="O que mudou?" autocomplete="off"><button aria-label="Perguntar ao assistente demonstrativo"><svg><use href="#i-arrow"/></svg></button></form><div id="answer" role="status" hidden></div></div>
+      <div class="scenario-picker"><label for="scenario">Estado demonstrativo</label><select id="scenario"><option value="normal">Contexto preparado</option><option value="processing">Processando mudanças</option><option value="paused">Automação pausada</option><option value="unavailable">Modelo indisponível</option><option value="missing">Fonte indisponível</option><option value="empty">Laboratório vazio</option></select></div>
+    </aside>
+  </div>
+  <dialog id="detailDialog"><div class="dialog-heading"><span class="eyebrow" id="dialogEyebrow">ORIGEM</span><button id="closeDialog" aria-label="Fechar"><svg><use href="#i-close"/></svg></button></div><div id="dialogContent"></div></dialog>
+  <div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>

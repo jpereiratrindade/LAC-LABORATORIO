@@ -1,0 +1,17 @@
+{
+  "project_ref": "project:1",
+  "sources": [
+    {
+      "ref": "event:101",
+      "title": "Proposta de revisão do protocolo",
+      "text": "Uma pessoa registrou a proposta de revisar o protocolo de coleta. A validação em campo ainda não foi realizada.",
+      "nature": "declared"
+    },
+    {
+      "ref": "event:102",
+      "title": "Arquivo do protocolo alterado",
+      "text": "O observador encontrou uma alteração no hash do arquivo protocolo.md. O conteúdo dessa alteração não foi recuperado.",
+      "nature": "observed"
+    }
+  ]
+}

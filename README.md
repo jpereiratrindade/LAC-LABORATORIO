@@ -12,6 +12,12 @@ Para retomar o trabalho com outro assistente, comece pela
 [passagem de contexto](docs/CONTINUIDADE.md). Essas capacidades estão planejadas;
 os comandos abaixo descrevem a versão operacional atual.
 
+Primeira entrega experimental: [prévia visual navegável](prototypes/laboratorio/README.md)
+e adaptador de inferência local validado com Ollama. Interface da prévia usa
+dados fictícios; automação contínua e memória real seguem nas próximas etapas.
+Contratos e inventário: [assistente local](docs/LAC-ASSISTENTE-CONTRATOS-001.md).
+Resultados dos testes reais: [avaliação inicial](docs/avaliacoes/2026-11-09-ollama.md).
+
 ## Rodar com um comando
 
 Dentro da pasta do projeto:

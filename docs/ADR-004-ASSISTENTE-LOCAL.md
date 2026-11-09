@@ -1,9 +1,10 @@
 # ADR-004 — Assistente local, memória e automação
 
 - Data: 2026-11-09.
-- Estado: proposta técnica para execução incremental.
+- Estado: direção em execução incremental; contratos da T01 especificados.
 - Direção solicitada: experiência visual, automação e assistente com LLM local
-  e memória persistente. Implementação ainda não iniciada.
+  e memória persistente. Adaptador T04 implementado; interface T02 em avaliação;
+  automação contínua, memória e integração operacional ainda pendentes.
 - Referências: [plano](PLANO-ASSISTENTE-LOCAL.md),
   [retomada](CONTINUIDADE.md), [governança](ADR-000-GOVERNANCA.md).
 
@@ -46,7 +47,8 @@ Memória persistente não implica treinamento automático dos pesos do modelo.
 - Revisões de memória com proprietário, validade e proveniência.
 - Endpoint ou canal local autenticado de menor privilégio para o worker.
 
-As rotas novas serão especificadas em T01. Não são APIs disponíveis hoje.
+As rotas novas estão especificadas no [contrato T01](LAC-ASSISTENTE-CONTRATOS-001.md).
+Não são APIs disponíveis hoje.
 
 ## Política de autonomia
 
