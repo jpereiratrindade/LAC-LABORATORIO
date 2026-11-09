@@ -1,0 +1,14 @@
+[Unit]
+Description=LAC - Laboratorio local de continuidade
+Documentation=man:systemd.service(5)
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/lac serve --port 8765 --scan-every 180
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+UMask=0077
+
+[Install]
+WantedBy=default.target

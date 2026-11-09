@@ -1,0 +1,30 @@
+cmake_minimum_required(VERSION 3.25)
+project(lac VERSION 0.1.2 LANGUAGES CXX)
+
+# gcc 14 and recent clang accept -std=c++2c; gcc 16 accepts the same dialect.
+# Avoid features absent from current compiler libraries; source is C++26-ready.
+set(CMAKE_CXX_STANDARD 26)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+find_package(SQLite3 REQUIRED)
+find_package(OpenSSL REQUIRED COMPONENTS Crypto)
+add_executable(lac src/main.cpp src/core.cpp src/server.cpp)
+target_include_directories(lac PRIVATE include)
+# FindSQLite3 renamed its imported target in newer CMake releases.
+# Use the modern target where supported; retain compatibility with CMake 3.25.
+if(TARGET SQLite3::SQLite3)
+  set(LAC_SQLITE_TARGET SQLite3::SQLite3)
+else()
+  set(LAC_SQLITE_TARGET SQLite::SQLite3)
+endif()
+target_link_libraries(lac PRIVATE ${LAC_SQLITE_TARGET} OpenSSL::Crypto)
+target_compile_options(lac PRIVATE -Wall -Wextra -Wpedantic -Wconversion -Wshadow)
+install(TARGETS lac RUNTIME DESTINATION bin)
+install(DIRECTORY web/ DESTINATION share/lac/web)
+include(CTest)
+if(BUILD_TESTING)
+  find_package(Python3 COMPONENTS Interpreter REQUIRED)
+  add_test(NAME lac_integration COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_lab.py $<TARGET_FILE:lac>)
+  set_tests_properties(lac_integration PROPERTIES TIMEOUT 40)
+endif()

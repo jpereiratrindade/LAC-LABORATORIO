@@ -1,0 +1,251 @@
+#include "lac/server.hpp"
+#include <algorithm>
+#include <array>
+#include <cerrno>
+#include <chrono>
+#include <csignal>
+#include <cstring>
+#include <fstream>
+#include <iostream>
+#include <map>
+#include <netinet/in.h>
+#include <poll.h>
+#include <sstream>
+#include <stdexcept>
+#include <sys/socket.h>
+#include <unistd.h>
+
+namespace lac {
+namespace {
+volatile std::sig_atomic_t stop_requested=0;
+void on_signal(int){stop_requested=1;}
+std::string trim(const std::string& x) {
+  const auto a=x.find_first_not_of(" \t\r\n");
+  if(a==std::string::npos)return "";
+  const auto b=x.find_last_not_of(" \t\r\n");return x.substr(a,b-a+1);
+}
+std::string lower(std::string x){
+  std::transform(x.begin(),x.end(),x.begin(),[](unsigned char c){return static_cast<char>(std::tolower(c));});
+  return x;
+}
+std::string decode(const std::string& x){
+  std::string out;
+  for(size_t i=0;i<x.size();++i){
+    if(x[i]=='%'&&i+2<x.size()){
+      auto hex=[](char c)->int{if(c>='0'&&c<='9')return c-'0';
+        if(c>='a'&&c<='f')return c-'a'+10;
+        if(c>='A'&&c<='F')return c-'A'+10;
+        return -1;};
+      const int hi=hex(x[i+1]),lo=hex(x[i+2]);
+      if(hi>=0&&lo>=0){const char c=static_cast<char>(hi*16+lo);
+        if(c=='\0')throw std::runtime_error("NUL byte not allowed");
+        out+=c;i+=2;continue;}
+    }
+    out+= x[i]=='+'?' ':x[i];
+  }
+  return out;
+}
+std::map<std::string,std::string> parameters(const std::string& s){
+  std::map<std::string,std::string> q;
+  size_t start=0;
+  while(start<s.size()){
+    const auto end=s.find('&',start);
+    const auto entry=s.substr(start,end==std::string::npos?std::string::npos:end-start);
+    const auto eq=entry.find('=');
+    if(eq!=std::string::npos)q[decode(entry.substr(0,eq))]=decode(entry.substr(eq+1));
+    if(end==std::string::npos)break;
+    start=end+1;
+  }
+  return q;
+}
+std::string value(const std::map<std::string,std::string>& q,const std::string& name){
+  auto i=q.find(name);return i==q.end()?"":i->second;
+}
+std::string read_file(const fs::path& path){
+  std::ifstream f(path,std::ios::binary);
+  if(!f)throw std::runtime_error("web asset not found: "+path.string());
+  std::ostringstream os;os<<f.rdbuf();return os.str();
+}
+void send_all(int fd,const std::string& text){
+  size_t pos=0;
+  while(pos<text.size()){
+    const ssize_t n=::send(fd,text.data()+pos,text.size()-pos,MSG_NOSIGNAL);
+    if(n<=0){if(n<0&&errno==EINTR)continue;break;}
+    pos+=static_cast<size_t>(n);
+  }
+}
+void respond(int fd,int status,const std::string& content_type,const std::string& body){
+  const std::string status_text=status==200?"OK":status==201?"Created":status==400?"Bad Request":
+    status==403?"Forbidden":status==404?"Not Found":status==405?"Method Not Allowed":
+    status==413?"Payload Too Large":"Internal Server Error";
+  std::ostringstream headers;
+  headers<<"HTTP/1.1 "<<status<<" "<<status_text<<"\r\n"
+    <<"Content-Type: "<<content_type<<"\r\n"
+    <<"Content-Length: "<<body.size()<<"\r\n"
+    <<"Cache-Control: no-store\r\n"
+    <<"X-Content-Type-Options: nosniff\r\n"
+    <<"X-Frame-Options: DENY\r\n"
+    <<"Referrer-Policy: no-referrer\r\n"
+    <<"Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; "
+         "connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'\r\n"
+    <<"Connection: close\r\n\r\n";
+  send_all(fd,headers.str()+body);
+}
+void json_error(int fd,int status,const std::string& message){
+  respond(fd,status,"application/json; charset=utf-8","{\"error\":"+json_string(message)+"}");
+}
+void handle_client(int fd,Sqlite& db,int port,const fs::path& web_root) {
+  timeval timeout{4,0};
+  setsockopt(fd,SOL_SOCKET,SO_RCVTIMEO,&timeout,sizeof(timeout));
+  std::string buffer;
+  std::array<char,8192> chunk{};
+  size_t header_end=std::string::npos;
+  while((header_end=buffer.find("\r\n\r\n"))==std::string::npos){
+    const ssize_t n=recv(fd,chunk.data(),chunk.size(),0);
+    if(n<=0) return;
+    buffer.append(chunk.data(),static_cast<size_t>(n));
+    if(buffer.size()>8192){json_error(fd,413,"headers exceed 8KiB");return;}
+  }
+  const std::string header=buffer.substr(0,header_end);
+  std::istringstream head(header);std::string request_line;
+  std::getline(head,request_line);
+  std::istringstream first(trim(request_line));
+  std::string method,target,http_version,extra;
+  first>>method>>target>>http_version>>extra;
+  if((method!="GET"&&method!="POST")||target.empty()||target.size()>4096||
+     http_version!="HTTP/1.1"||!extra.empty()){
+    json_error(fd,405,"unsupported HTTP request");return;
+  }
+  std::map<std::string,std::string> headers;
+  std::string line;
+  while(std::getline(head,line)){
+    line=trim(line);if(line.empty())continue;
+    const auto colon=line.find(':');
+    if(colon==std::string::npos){json_error(fd,400,"invalid HTTP header");return;}
+    const std::string key=lower(trim(line.substr(0,colon)));
+    if(headers.contains(key)){json_error(fd,400,"duplicate header forbidden");return;}
+    headers[key]=trim(line.substr(colon+1));
+  }
+  const auto host=value(headers,"host");
+  const auto local_ip="127.0.0.1:"+std::to_string(port);
+  const auto local_name="localhost:"+std::to_string(port);
+  if(host!=local_ip && host!=local_name){json_error(fd,403,"invalid host; localhost only");return;}
+  const auto origin=value(headers,"origin");
+  if(!origin.empty() && origin!="http://"+local_ip && origin!="http://"+local_name){
+    json_error(fd,403,"cross-origin operation not allowed");return;
+  }
+  const auto question=target.find('?');
+  const std::string path=target.substr(0,question);
+  std::string param_str=question==std::string::npos?"":target.substr(question+1);
+  if(method=="POST") {
+    if(value(headers,"x-lac-local")!="1") {json_error(fd,403,"missing local API header");return;}
+    if(value(headers,"content-type")!="application/x-www-form-urlencoded"){
+      json_error(fd,400,"Content-Type must be application/x-www-form-urlencoded");return;
+    }
+    const auto length=value(headers,"content-length");
+    size_t bytes=0;
+    try {bytes=std::stoul(length);if(length!=std::to_string(bytes))throw std::runtime_error("bad");}
+    catch(...){json_error(fd,400,"Content-Length required");return;}
+    if(bytes>16384){json_error(fd,413,"body exceeds 16KiB");return;}
+    std::string body=buffer.substr(header_end+4);
+    if(body.size()>bytes){json_error(fd,400,"ambiguous request body");return;}
+    while(body.size()<bytes){
+      const ssize_t n=recv(fd,chunk.data(),std::min(chunk.size(),bytes-body.size()),0);
+      if(n<=0){json_error(fd,400,"truncated request body");return;}
+      body.append(chunk.data(),static_cast<size_t>(n));
+    }
+    param_str=body;
+  }
+  std::map<std::string,std::string> q;
+  try {q=parameters(param_str);} catch(const std::exception& e){json_error(fd,400,e.what());return;}
+  try {
+    std::string output,content_type="application/json; charset=utf-8";int status=200;
+    if(method=="GET"){
+      if(path=="/"||path=="/index.html"){
+        output=read_file(web_root/"index.html");content_type="text/html; charset=utf-8";
+      }else if(path=="/app.js"){
+        output=read_file(web_root/"app.js");content_type="text/javascript; charset=utf-8";
+      }else if(path=="/style.css"){
+        output=read_file(web_root/"style.css");content_type="text/css; charset=utf-8";
+      }else if(path=="/favicon.svg"){
+        output=read_file(web_root/"favicon.svg");content_type="image/svg+xml";
+      }else if(path=="/assets/lac-symbol.svg"){
+        output=read_file(web_root/"assets"/"lac-symbol.svg");content_type="image/svg+xml";
+      }else if(path=="/assets/lac-icon-512.png"){
+        output=read_file(web_root/"assets"/"lac-icon-512.png");content_type="image/png";
+      }else if(path=="/api/health")output="{\"ok\":true,\"mode\":\"offline_no_llm\"}";
+      else if(path=="/api/verify"){
+        std::string message;
+        const bool ok=verify_chain(db,message);
+        output="{\"ok\":"+std::string(ok?"true":"false")+",\"message\":"+json_string(message)+"}";
+      }
+      else if(path=="/api/stats")output=json_stats(db);
+      else if(path=="/api/report"){
+        output=markdown_report(db,q);content_type="text/markdown; charset=utf-8";
+      }
+      else if(path=="/api/events")output=json_events(db,q);
+      else if(path=="/api/projects")output=json_projects(db);
+      else if(path=="/api/roots")output=json_roots(db);
+      else if(path=="/api/relations")output=json_relations(db);
+      else if(path=="/api/todos")output=json_todos(db);
+      else {json_error(fd,404,"route not found");return;}
+    } else {
+      if(path=="/api/roots"){
+        const int id=register_root(db,value(q,"project"),value(q,"path"),value(q,"kind"));
+        output="{\"id\":"+std::to_string(id)+"}";status=201;
+      }else if(path=="/api/scan"){
+        const int changes=scan_all(db);
+        output="{\"new_events\":"+std::to_string(changes)+"}";
+      }else if(path=="/api/notes"){
+        const auto id=record_note(db,value(q,"project"),value(q,"kind"),value(q,"title"),
+                                  value(q,"body"),value(q,"reference"));
+        output="{\"id\":"+std::to_string(id)+"}";status=201;
+      }else if(path=="/api/todos/close"){
+        const auto id=close_todo(db,std::stoll(value(q,"id")));
+        output="{\"id\":"+std::to_string(id)+"}";status=201;
+      }else if(path=="/api/relations"){
+        const auto id=record_relation(db,value(q,"from"),value(q,"to"),value(q,"label"),value(q,"state"));
+        output="{\"id\":"+std::to_string(id)+"}";status=201;
+      }else {json_error(fd,404,"route not found");return;}
+    }
+    respond(fd,status,content_type,output);
+  }catch(const std::exception& ex){
+    // Invalid user input is a 400; internal errors are not exposed as SQL or paths.
+    std::cerr<<"request error: "<<ex.what()<<"\n";
+    json_error(fd,400,"request failed; see local server log");
+  }
+}
+} // namespace
+void serve(Sqlite& db,int port,int scan_every,const fs::path& web_root){
+  if(port<1024||port>65535)throw std::runtime_error("port must be 1024-65535");
+  if(scan_every<0||scan_every>86400)throw std::runtime_error("scan interval must be 0-86400 seconds");
+  if(!fs::is_regular_file(web_root/"index.html"))throw std::runtime_error("web UI assets missing: "+web_root.string());
+  const int listener=socket(AF_INET,SOCK_STREAM,0);
+  if(listener<0)throw std::runtime_error("socket failed");
+  int reuse=1;setsockopt(listener,SOL_SOCKET,SO_REUSEADDR,&reuse,sizeof(reuse));
+  sockaddr_in address{};address.sin_family=AF_INET;
+  address.sin_addr.s_addr=htonl(INADDR_LOOPBACK);
+  address.sin_port=htons(static_cast<uint16_t>(port));
+  if(bind(listener,reinterpret_cast<sockaddr*>(&address),sizeof(address))<0||listen(listener,16)<0){
+    close(listener);throw std::runtime_error("cannot bind to 127.0.0.1:"+std::to_string(port));
+  }
+  auto old_int=std::signal(SIGINT,on_signal);
+  auto old_term=std::signal(SIGTERM,on_signal);
+  std::cout<<"LAC: http://127.0.0.1:"<<port<<" (somente local, sem LLM)\n"<<std::flush;
+  auto next_scan=std::chrono::steady_clock::now();
+  while(!stop_requested){
+    if(scan_every>0&&std::chrono::steady_clock::now()>=next_scan){
+      try{const auto n=scan_all(db);if(n)std::cout<<"observados: "<<n<<" novos eventos\n"<<std::flush;}
+      catch(const std::exception& e){std::cerr<<"scan failed: "<<e.what()<<"\n";}
+      next_scan=std::chrono::steady_clock::now()+std::chrono::seconds(scan_every);
+    }
+    pollfd pfd{listener,POLLIN,0};
+    const int n=poll(&pfd,1,500);
+    if(n>0&&(pfd.revents&POLLIN)){
+      int client=accept(listener,nullptr,nullptr);
+      if(client>=0){handle_client(client,db,port,web_root);close(client);}
+    }else if(n<0&&errno!=EINTR)break;
+  }
+  close(listener);std::signal(SIGINT,old_int);std::signal(SIGTERM,old_term);
+}
+} // namespace lac

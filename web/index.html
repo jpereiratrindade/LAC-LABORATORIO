@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#061d36">
+  <meta name="description" content="LAC — laboratório local de continuidade operacional, relacional e evolutiva.">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/assets/lac-icon-512.png">
+  <title>LAC · Laboratório de Continuidade</title>
+  <link rel="stylesheet" href="/style.css">
+  <script defer src="/app.js"></script>
+</head>
+<body>
+<svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+<symbol id="ic-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></symbol>
+<symbol id="ic-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18M7 14h3m4 0h3M7 18h3"/></symbol>
+<symbol id="ic-layers" viewBox="0 0 24 24"><path d="m12 2 9 5-9 5-9-5 9-5Zm-9 10 9 5 9-5M3 17l9 5 9-5"/></symbol>
+<symbol id="ic-activity" viewBox="0 0 24 24"><path d="M2 12h4l3-7 4 14 3-7h6"/></symbol>
+<symbol id="ic-links" viewBox="0 0 24 24"><circle cx="12" cy="4" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/><path d="M11 6 6 16m7-10 5 10M7 18h10"/></symbol>
+<symbol id="ic-db" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 4 18 4 18 0V5M3 12c0 4 18 4 18 0"/></symbol>
+<symbol id="ic-check" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m7 12 3 3 7-7"/></symbol>
+<symbol id="ic-eye" viewBox="0 0 24 24"><path d="M2 12S6 5 12 5s10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="ic-shield" viewBox="0 0 24 24"><path d="m12 2 9 4v6c0 5-3.5 8-9 10-5.5-2-9-5-9-10V6z"/><path d="m8 12 3 3 5-6"/></symbol>
+<symbol id="ic-report" viewBox="0 0 24 24"><path d="M4 21h16M6 17V9h3v8m3 0V3h3v14m3 0v-6h3v6"/></symbol>
+<symbol id="ic-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M10 2h4l1 3 2 1 3-1 2 4-2 2v2l2 2-2 4-3-1-2 1-1 3h-4l-1-3-2-1-3 1-2-4 2-2v-2L2 9l2-4 3 1 2-1z"/></symbol>
+<symbol id="ic-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></symbol>
+<symbol id="ic-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2 6M20 4v7h-7"/></symbol>
+<symbol id="ic-download" viewBox="0 0 24 24"><path d="M12 3v13m-5-5 5 5 5-5M4 18v3h16v-3"/></symbol>
+<symbol id="ic-bolt" viewBox="0 0 24 24"><path d="m13 2-9 12h7l-1 8 10-12h-7z"/></symbol>
+<symbol id="ic-file" viewBox="0 0 24 24"><path d="M6 2h8l5 5v15H6zM14 2v6h5M9 12h7m-7 4h7"/></symbol>
+<symbol id="ic-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 11v6m0-10h.01"/></symbol>
+<symbol id="ic-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></symbol>
+<symbol id="ic-chevron" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+<symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+</svg>
+<header class="masthead">
+  <a class="mast-brand" href="#overview" data-go="overview" aria-label="LAC: visão geral">
+    <img src="/assets/lac-symbol.svg" alt="" width="83" height="58">
+    <strong>LAC</strong>
+    <span class="mast-description">Laboratório de Continuidade<small>OBSERVAR · PRESERVAR · RECUPERAR</small></span>
+  </a>
+  <span class="mast-version">v0.1.2</span>
+  <div class="mast-spacer"></div>
+  <span id="mastHealth" class="mast-health" role="status">Verificando cadeia...</span>
+  <button class="mast-icon" data-go="settings" title="Preferências locais" aria-label="Abrir preferências"><svg><use href="#ic-settings"/></svg></button>
+  <button class="mast-icon" data-go="about" title="Sobre o LAC" aria-label="Sobre o laboratório"><svg><use href="#ic-info"/></svg></button>
+</header>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="side-section">LABORATÓRIO</div>
+    <nav aria-label="Navegação principal">
+      <button class="nav active" type="button" data-view="overview"><svg><use href="#ic-home"/></svg>Visão geral</button>
+      <button class="nav" type="button" data-view="timeline"><svg><use href="#ic-calendar"/></svg>Linha do tempo</button>
+      <button class="nav" type="button" data-view="projects"><svg><use href="#ic-layers"/></svg>Projetos</button>
+      <button class="nav" type="button" data-view="events"><svg><use href="#ic-activity"/></svg>Eventos</button>
+      <button class="nav" type="button" data-view="relations"><svg><use href="#ic-links"/></svg>Relações</button>
+      <button class="nav" type="button" data-view="sources"><svg><use href="#ic-db"/></svg>Fontes</button>
+      <button class="nav" type="button" data-view="todos"><svg><use href="#ic-check"/></svg>Pendências</button>
+    </nav>
+    <div class="side-rule"></div>
+    <div class="side-section">GESTÃO</div>
+    <nav aria-label="Operações do laboratório">
+      <button class="nav" type="button" data-view="observation"><svg><use href="#ic-eye"/></svg>Observação</button>
+      <button class="nav" type="button" data-view="integrity"><svg><use href="#ic-shield"/></svg>Integridade</button>
+      <button class="nav" type="button" data-view="reports"><svg><use href="#ic-report"/></svg>Relatórios</button>
+      <button class="nav" type="button" data-view="settings"><svg><use href="#ic-settings"/></svg>Preferências</button>
+    </nav>
+    <div class="sidebar-spacer"></div>
+    <div class="principles"><img src="/assets/lac-symbol.svg" alt="" width="62" height="45"><strong>REA · RIT · MPRR</strong><span>Reflexividade · Integridade temporal · Percepção relacional</span><small>Sempre pronto. Sempre incompleto.</small></div>
+    <div class="side-bottom"><span class="status-dot"></span>Processamento local<br><span class="muted">Sem LLM · 127.0.0.1:8765</span></div>
+  </aside>
+  <main class="main">
+    <div class="breadcrumb"><strong>LAC</strong><span>/</span><span id="currentView">Visão geral</span></div>
+    <div class="page">
+      <div id="dashboardIntro">
+        <section class="hero" aria-label="Apresentação do laboratório">
+          <div class="hero-text"><div class="eyebrow">CONTINUIDADE DO TRABALHO</div><h1>Memória operacional,<br><em>relacional e evolutiva.</em></h1><p>Registra acontecimentos, decisões, artefatos e relações entre projetos, com evidências verificáveis e integridade temporal.</p></div>
+          <div class="hero-art" aria-hidden="true"><img src="/assets/lac-symbol.svg" alt="" width="325" height="236"></div>
+          <ul class="hero-questions"><li>O que fizemos?</li><li>Por que fizemos?</li><li>O que decidimos?</li><li>Onde estão os documentos?</li><li>O que ficou incompleto?</li><li>Qual é a próxima ação?</li></ul>
+        </section>
+      </div>
+      <div id="notice" role="status" aria-live="polite" class="notice" hidden></div>
+      <div id="dashboardBody" class="dashboard-body">
+        <div id="dashboardStats" class="statgrid" aria-label="Indicadores">
+          <div class="stat"><div class="stat-icon"><svg><use href="#ic-layers"/></svg></div><div><span>Projetos</span><strong id="statProjects">—</strong></div></div>
+          <div class="stat"><div class="stat-icon"><svg><use href="#ic-calendar"/></svg></div><div><span>Eventos</span><strong id="statEvents">—</strong></div></div>
+          <div class="stat"><div class="stat-icon"><svg><use href="#ic-file"/></svg></div><div><span>Fontes</span><strong id="statRoots">—</strong></div></div>
+          <div class="stat"><div class="stat-icon"><svg><use href="#ic-check"/></svg></div><div><span>Pendências abertas</span><strong id="statTodos">—</strong></div></div>
+        </div>
+
+        <section id="view-timeline" class="view timeline-card">
+          <div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-calendar"/></svg><div><h2>Linha do tempo</h2><p>Registros de projetos, commits, documentos, decisões e alterações.</p></div></div><button id="btnNewNote" class="primary" type="button"><svg><use href="#ic-plus"/></svg> Registrar acontecimento</button></div>
+          <div class="toolbar">
+            <label class="search"><svg><use href="#ic-search"/></svg><input id="filterQ" type="search" placeholder="Buscar projetos, eventos, documentos..." aria-label="Buscar registros"></label>
+            <label>Projeto <select id="filterProject"><option value="">Todos</option></select></label>
+            <label>Tipo <select id="filterKind"><option value="">Todos</option><option value="git_commit">Commit</option><option value="file_added">Arquivo novo</option><option value="file_changed">Arquivo alterado</option><option value="file_missing">Arquivo ausente</option><option value="decision">Decisão declarada</option><option value="note">Nota</option><option value="todo">Pendência</option><option value="todo_closed">Pendência concluída</option><option value="correction">Correção</option><option value="relation">Relação</option></select></label>
+            <label>De <input id="filterFrom" type="date"></label><label>Até <input id="filterTo" type="date"></label>
+            <button id="btnWeekend" class="ghost compact" type="button">Últimos 7 dias</button>
+            <button id="btnExport" class="ghost compact" type="button"><svg><use href="#ic-download"/></svg> Exportar diário</button>
+            <button id="btnClear" class="ghost compact" type="button">Limpar</button>
+          </div>
+          <div class="table-heading"><span>EVENTO / PROVENIÊNCIA</span><span>OCORRÊNCIA</span></div>
+          <div id="events" class="events"><p class="empty">Carregando registros...</p></div>
+        </section>
+        <aside id="quickRail" class="quick-rail">
+          <section class="surface rail-card"><h3><svg><use href="#ic-bolt"/></svg>Ações rápidas</h3>
+            <button class="rail-action" type="button" data-go="sources"><svg><use href="#ic-eye"/></svg><span>Observar diretórios / repositórios</span><svg class="arrow"><use href="#ic-chevron"/></svg></button>
+            <button class="rail-action" type="button" id="btnScan"><svg><use href="#ic-refresh"/></svg><span>Executar varredura</span><svg class="arrow"><use href="#ic-chevron"/></svg></button>
+            <button class="rail-action" type="button" id="btnVerify"><svg><use href="#ic-shield"/></svg><span>Verificar integridade</span><svg class="arrow"><use href="#ic-chevron"/></svg></button>
+            <button class="rail-action" type="button" id="btnReportQuick"><svg><use href="#ic-download"/></svg><span>Exportar diário</span><svg class="arrow"><use href="#ic-chevron"/></svg></button>
+          </section>
+          <section class="surface rail-card about-rail"><h3><svg><use href="#ic-info"/></svg>Sobre o LAC</h3><strong>Laboratório de Continuidade</strong><p>Observador determinístico de atividades, artefatos e relações, inspirado em REA, RIT e MPRR.</p><div class="motto">Sempre pronto. Sempre incompleto.</div></section>
+        </aside>
+      </div>
+      <section id="view-projects" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-layers"/></svg><div><h2>Projetos</h2><p>Visão consolidada dos projetos declarados e observados.</p></div></div><button class="secondary" data-go="sources" type="button">+ Cadastrar fonte</button></div><div id="projects" class="card-grid"></div></section>
+      <section id="view-events" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-activity"/></svg><div><h2>Eventos</h2><p>Ocorrências observadas e registros declarados, com suas proveniências.</p></div></div><button class="secondary" type="button" data-go="timeline">Abrir busca completa</button></div><div id="eventsListing" class="events"></div></section>
+      <section id="view-todos" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-check"/></svg><div><h2>Pendências abertas</h2><p>Encerramentos preservam o evento original.</p></div></div><button class="primary" type="button" data-open-note="todo">+ Adicionar pendência</button></div><div id="todos" class="events"></div></section>
+      <section id="view-relations" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-links"/></svg><div><h2>Relações explícitas</h2><p>Relações candidatas não demonstram causalidade.</p></div></div></div><form id="relationForm" class="surface form-grid"><label>Projeto de origem<input name="from" required maxlength="120" placeholder="TESSITURA"></label><label>Projeto relacionado<input name="to" required maxlength="120" placeholder="EVIDA"></label><label class="span2">Descrição da relação<input name="label" required maxlength="300" placeholder="Proposta de integração documental"></label><label>Estado<select name="state"><option value="candidate">Candidata</option><option value="user_confirmed">Confirmada pelo usuário (não validada cientificamente)</option></select></label><button class="primary self-end" type="submit">Registrar relação</button></form><div id="relations" class="events"></div></section>
+      <section id="view-sources" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-db"/></svg><div><h2>Fontes monitoradas</h2><p>Somente os caminhos autorizados são observados; nenhum arquivo original é alterado.</p></div></div><button class="secondary" data-go="observation" type="button">Executar observação</button></div><form id="rootForm" class="surface form-grid"><label>Projeto<input name="project" required maxlength="120" placeholder="ELO/OS"></label><label>Tipo<select name="kind"><option value="git">Repositório Git</option><option value="docs">Diretório de documentos</option></select></label><label class="span2">Caminho absoluto no computador<input name="path" required placeholder="/run/media/.../dev/cpp/elo-os"></label><button class="primary self-end" type="submit">Registrar fonte</button></form><div id="roots" class="events"></div></section>
+      <section id="view-observation" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-eye"/></svg><div><h2>Observação</h2><p>Uma varredura lê fontes autorizadas e cria somente eventos novos.</p></div></div><button id="btnScanFull" class="primary" type="button"><svg><use href="#ic-refresh"/></svg> Executar varredura</button></div><div class="info-panel"><strong>Observação explícita e idempotente</strong><p>Commits Git e alterações documentais são registros de mudança, não conclusões sobre a qualidade dos resultados. Cadastre fontes antes de observar.</p><button class="secondary" data-go="sources" type="button">Gerenciar fontes</button></div><div id="observationRoots" class="events"></div></section>
+      <section id="view-integrity" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-shield"/></svg><div><h2>Integridade da trilha</h2><p>Verificação da cadeia SHA-256 armazenada no SQLite.</p></div></div><button id="btnVerifyFull" class="primary" type="button">Verificar agora</button></div><div id="integrityDetails" class="info-panel" role="status">Verificação ainda não executada nesta tela.</div><div class="info-panel"><strong>Limite da verificação</strong><p>A cadeia interna ajuda a detectar alterações, mas não substitui uma âncora independente. Para verificar uma âncora externa, utilize <code>./build/lac verify --anchor CAMINHO</code> no terminal. Esta interface não afirma validação externa.</p></div></section>
+      <section id="view-reports" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-report"/></svg><div><h2>Relatórios e diários</h2><p>Exportação em Markdown com datas de ocorrência, fontes e hashes de eventos.</p></div></div></div><form id="reportForm" class="surface form-grid"><label>De<input name="from" type="date"></label><label>Até<input name="to" type="date"></label><label class="span2">Projeto<select name="project" id="reportProject"><option value="">Todos os projetos</option></select></label><button class="primary self-end" type="submit"><svg><use href="#ic-download"/></svg> Exportar Markdown</button></form><div class="info-panel"><strong>Critério de exportação</strong><p>O diário registra até 5.000 eventos por exportação. Não inclui automaticamente conversas privadas em outras aplicações ou alterações fora das fontes cadastradas.</p></div></section>
+      <section id="view-settings" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-settings"/></svg><div><h2>Preferências locais</h2><p>Estas opções afetam somente este navegador.</p></div></div></div><div class="surface settings-panel"><label><input type="checkbox" id="preferCompact"> Exibição compacta dos registros</label><label><input type="checkbox" id="preferRecent"> Abrir linha do tempo com filtro dos últimos sete dias</label><p class="support">As preferências ficam armazenadas no navegador; não alteram o banco de eventos nem executam varreduras.</p></div></section>
+      <section id="view-about" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-info"/></svg><div><h2>Sobre o laboratório</h2><p>LAC v0.1.2 · Memória operacional, relacional e evolutiva.</p></div></div></div><div class="info-panel"><strong>Sempre pronto. Sempre incompleto.</strong><p>O LAC ajuda a observar, preservar e recuperar trajetórias de trabalho sem LLM, sem telemetria e sem depender de serviços externos. REA, RIT e MPRR são referenciais metodológicos, não modelos automáticos de causalidade.</p></div></section>
+    </div>
+    <footer>REA — Reflexividade Epistêmica e Adaptativa &nbsp; | &nbsp; RIT — Reflexividade sob Integridade Temporal &nbsp; | &nbsp; MPRR — Percepção Relacional da Realidade<br><small>Os eventos observados demonstram alterações e registros; não demonstram, por si só, resultados científicos.</small></footer>
+  </main>
+</div>
+<dialog id="noteDialog"><form id="noteForm" class="modal-content"><div class="modal-title"><div><span class="eyebrow">REGISTRO HUMANO · DECLARADO</span><h2>Novo registro</h2></div><button class="icon-button" id="closeNote" type="button" aria-label="Fechar">×</button></div><label>Projeto<input name="project" maxlength="120" required placeholder="ELO/OS"></label><label>Natureza do registro<select name="kind"><option value="note">Nota</option><option value="decision">Decisão</option><option value="todo">Pendência</option><option value="correction">Correção / retificação</option></select></label><label>Título<input name="title" maxlength="200" required placeholder="O que aconteceu?"></label><label>Descrição<textarea name="body" rows="5" maxlength="8000" placeholder="Contexto, limites, próximo passo..."></textarea></label><label>Referência (opcional)<input name="reference" maxlength="3000" placeholder="commit, caminho do arquivo, link..."></label><div class="modal-actions"><button type="button" id="cancelNote" class="ghost">Cancelar</button><button type="submit" class="primary">Registrar sem alterar o passado</button></div></form></dialog>
+</body>
+</html>
