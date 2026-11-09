@@ -91,7 +91,7 @@ async function refreshStats() {
 }
 async function refreshProjectsOptions() {
   const projects = await api('/api/projects');
-  for (const [id,placeholder] of [['filterProject','Todos'],['reportProject','Todos os projetos'],['omniProject','lac-laboratorio']]) {
+  for (const [id,placeholder] of [['filterProject','Todos'],['reportProject','Todos os projetos'],['omniProject','lac-laboratorio'],['filterCorpusProject','Todos os projetos']]) {
     const el=$(id); if (!el) continue;
     const before=el.value;
     el.replaceChildren(id==='omniProject' ? new Option('lac-laboratorio','lac-laboratorio') : new Option(placeholder,''));
@@ -299,6 +299,88 @@ async function inspectDocument(filePath, project, insightSummary){
     showNotice(e.message,true);
   }
 }
+async function refreshCorpus(){
+  const target=$('corpusListing');
+  const stats=$('corpusStats');
+  if(!target)return;
+
+  const q=new URLSearchParams({limit:'150'});
+  const term=($('filterCorpusQ')?.value||'').trim();
+  const proj=($('filterCorpusProject')?.value||'').trim();
+  const ext=($('filterCorpusExt')?.value||'').trim();
+
+  if(term)q.set('q',term);
+  if(proj)q.set('project',proj);
+  if(ext)q.set('ext',ext);
+
+  stats.textContent='Consultando acervo documental...';
+  let docs=[];
+  try{
+    docs=await api(`/api/documents?${q}`);
+  }catch(err){
+    stats.textContent='Erro ao consultar acervo: '+err.message;
+    return;
+  }
+
+  target.replaceChildren();
+  if(!docs.length){
+    stats.textContent='Nenhum documento encontrado no acervo com os filtros informados.';
+    target.append(empty('Nenhum documento encontrado no acervo. Verifique os caminhos autorizados em Fontes.'));
+    return;
+  }
+
+  stats.textContent=`Exibindo ${docs.length} documento(s) do acervo${proj?` no projeto ${proj}`:''}.`;
+
+  for(const doc of docs){
+    const card=$create('article','corpus-card');
+
+    const header=$create('div','corpus-card-header');
+    const badgeProj=$create('span','corpus-badge project',doc.project);
+    const badgeExt=$create('span','corpus-badge ext',doc.ext||'.doc');
+    header.append(badgeProj,badgeExt);
+
+    if(doc.has_insight){
+      const badgeAi=$create('span','corpus-badge ai','✦ Síntese de Continuidade');
+      header.append(badgeAi);
+    }
+
+    const titleText=doc.filename||doc.path.split('/').pop();
+    const titleEl=$create('h3','corpus-card-title',titleText);
+    const pathEl=$create('div','corpus-card-path',doc.path);
+
+    card.append(header,titleEl,pathEl);
+
+    if(doc.summary){
+      const summaryEl=$create('div','corpus-card-summary');
+      summaryEl.append($create('strong','','Síntese Intelectual: '));
+      summaryEl.append(document.createTextNode(doc.summary));
+      card.append(summaryEl);
+    }
+
+    if(doc.gaps&&Array.isArray(doc.gaps)&&doc.gaps.length>0){
+      const gapsContainer=$create('div','corpus-card-gaps');
+      const gapsLabel=$create('span','corpus-gaps-label','Oportunidades identificadas:');
+      gapsContainer.append(gapsLabel);
+      for(const g of doc.gaps.slice(0,3)){
+        const gapPill=$create('span','corpus-gap-pill',g);
+        gapsContainer.append(gapPill);
+      }
+      card.append(gapsContainer);
+    }
+
+    const actions=$create('div','corpus-card-actions');
+    const readBtn=$create('button','primary compact','Examinar texto');
+    readBtn.type='button';
+    readBtn.addEventListener('click',()=>inspectDocument(doc.path,doc.project,doc.summary));
+    actions.append(readBtn);
+
+    const timeSpan=$create('span','corpus-card-date',`Registrado: ${localDate(doc.occurred_at)}`);
+    actions.append(timeSpan);
+
+    card.append(actions);
+    target.append(card);
+  }
+}
 async function refreshInsights(){
   try{
     const list=await api('/api/assistant/insights');
@@ -316,6 +398,7 @@ async function refresh(){
   if(activeView==='overview')await refreshInsights();
   switch(activeView){
     case 'overview':case 'timeline':await refreshEvents();break;
+    case 'corpus':await refreshCorpus();break;
     case 'events':await refreshEventListing();break;
     case 'projects':await refreshProjects();break;
     case 'todos':await refreshTodos();break;
@@ -804,3 +887,15 @@ if ($('omniInput')) {
     }
   });
 }
+
+// Filtros do Acervo & Documentos
+if ($('filterCorpusQ')) {
+  let corpusDebounce = null;
+  $('filterCorpusQ').addEventListener('input', () => {
+    clearTimeout(corpusDebounce);
+    corpusDebounce = setTimeout(refreshCorpus, 250);
+  });
+}
+if ($('filterCorpusProject')) $('filterCorpusProject').addEventListener('change', refreshCorpus);
+if ($('filterCorpusExt')) $('filterCorpusExt').addEventListener('change', refreshCorpus);
+if ($('btnRefreshCorpus')) $('btnRefreshCorpus').addEventListener('click', refreshCorpus);

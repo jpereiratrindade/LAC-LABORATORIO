@@ -512,20 +512,76 @@ std::string json_events(Sqlite& db,const std::map<std::string,std::string>& q){
   query+="WHERE 1=1 ";
   if(!search.empty())query+="AND event_fts MATCH ? ";
   if(!project.empty())query+="AND p.name=? ";
-  if(!kind.empty())query+="AND e.kind=? ";
+  if(kind=="substantive")query+="AND e.kind NOT IN ('file_added','file_changed','file_missing') ";
+  else if(!kind.empty())query+="AND e.kind=? ";
   if(!from.empty())query+="AND substr(e.occurred_at,1,10)>=? ";
   if(!to.empty())query+="AND substr(e.occurred_at,1,10)<=? ";
   query+="ORDER BY e.occurred_at DESC,e.id DESC LIMIT ?";
   Stmt s(db.db,query);int index=1;
   if(!search.empty())s.bind(index++,search);
   if(!project.empty())s.bind(index++,project);
-  if(!kind.empty())s.bind(index++,kind);
+  if(!kind.empty()&&kind!="substantive")s.bind(index++,kind);
   if(!from.empty())s.bind(index++,from);
   if(!to.empty())s.bind(index++,to);
   s.bind(index,query_limit(get_query(q,"limit")));
   std::string out="[";bool first=true;
   while(s.step()==SQLITE_ROW){if(!first)out+=",";first=false;out+=json_event(event_row(s));}
   return out+"]";
+}
+std::string json_documents(Sqlite& db, const std::map<std::string,std::string>& q){
+  const std::string project=get_query(q,"project");
+  const std::string term=get_query(q,"q");
+  const std::string ext_filter=get_query(q,"ext");
+  int limit=150;
+  try{
+    const std::string l=get_query(q,"limit");
+    if(!l.empty())limit=std::min(500,std::max(10,std::stoi(l)));
+  }catch(...){}
+
+  std::string sql="SELECT e.id, e.source_ref, p.name, e.title, e.occurred_at, i.summary, i.gaps_json "
+                  "FROM events e "
+                  "JOIN projects p ON p.id=e.project_id "
+                  "LEFT JOIN continuity_insights i ON i.event_id=e.id "
+                  "WHERE e.kind IN ('file_added','file_changed') ";
+  if(!project.empty())sql+="AND p.name=? ";
+  if(!term.empty())sql+="AND (e.title LIKE ? OR e.source_ref LIKE ? OR (i.summary IS NOT NULL AND i.summary LIKE ?)) ";
+  sql+="GROUP BY e.source_ref ";
+  sql+="ORDER BY (i.summary IS NOT NULL) DESC, e.id DESC LIMIT ?";
+
+  Stmt s(db.db,sql);
+  int idx=1;
+  if(!project.empty())s.bind(idx++,project);
+  if(!term.empty()){
+    const std::string pattern="%"+term+"%";
+    s.bind(idx++,pattern);
+    s.bind(idx++,pattern);
+    s.bind(idx++,pattern);
+  }
+  s.bind(idx++,limit);
+
+  std::string out="[";
+  bool first=true;
+  while(s.step()==SQLITE_ROW){
+    const std::string path=s.str(1);
+    std::string ext;
+    const auto dot=path.rfind('.');
+    if(dot!=std::string::npos)ext=path.substr(dot);
+    if(!ext_filter.empty()&&ext!=ext_filter)continue;
+
+    if(!first)out+=",";
+    first=false;
+    out+="{\"id\":"+std::to_string(s.number(0))+
+         ",\"path\":"+json_string(path)+
+         ",\"project\":"+json_string(s.str(2))+
+         ",\"filename\":"+json_string(s.str(3))+
+         ",\"ext\":"+json_string(ext)+
+         ",\"occurred_at\":"+json_string(s.str(4))+
+         ",\"has_insight\":"+std::string(s.str(5).empty()?"false":"true")+
+         ",\"summary\":"+json_string(s.str(5))+
+         ",\"gaps\":"+(s.str(6).empty()?"[]":s.str(6))+"}";
+  }
+  out+="]";
+  return out;
 }
 std::string json_roots(Sqlite& db){
   std::string out="[";bool first=true;

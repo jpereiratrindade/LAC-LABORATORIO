@@ -270,6 +270,7 @@ void handle_client(int fd,Sqlite& db,int port,const fs::path& web_root,
       else if(path=="/api/assistant/insights")output=json_continuity_insights(db, value(q,"project"));
       else if(path=="/api/assistant/jobs")output=json_continuity_jobs(db);
       else if(path=="/api/assistant/feedback")output=json_continuity_feedback(db, value(q,"project"));
+      else if(path=="/api/documents")output=json_documents(db, q);
       else if(path=="/api/documents/read"){
         std::string authorized_roots;
         for(const auto& r: roots(db)){

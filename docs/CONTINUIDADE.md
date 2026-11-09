@@ -45,16 +45,22 @@ Execução desta etapa ocorreu sobre `c022e8e`. Verificar Git na retomada.
   Tabela durável `continuity_feedback`, endpoints `/api/assistant/feedback` (GET e POST),
   ações de adoção e descarte com 1 clique de descobertas e relações propostas no frontend,
   e filtro de contexto no worker para que relações dispensadas pela equipe não sejam re-propostas.
-- T05, T06, T07, T10 a T12: em andamento / pendentes (próximo passo: agregação de rajadas e reconstrução de trajetórias).
+- T05/T06: concluída a camada de **Acervo & Corpus Intelectual Vivo**:
+  1. Extrator de metadados intelectuais (`scripts/lac_doc_reader.py`) com parsing refinado de LaTeX (`\title`, `\section`, `\author`), Markdown (`# Title`, frontmatter) e PDF (cabeçalhos limpos).
+  2. Endpoint `/api/documents` agregador e desduplicado no core C++, associando eventos documentais, projetos e sínteses da LLM (`continuity_insights`).
+  3. Nova visão de primeira classe **Acervo & Documentos** (`#view-corpus`) com busca em tempo real, filtros de projeto e formato (.tex, .md, .pdf, .txt), cards com síntese de continuidade e leitura textual imediata (`#docDialog`).
+  4. Filtro de acontecimentos substantivos na Linha do Tempo (`kind=substantive`), eliminando o ruído de centenas de arquivos brutos e destacando decisões, notas e marcos.
+  5. Drenagem e saneamento da fila em lote de raízes volumosas (`Manuscript/Relatorio`), preservando 202 sínteses prévias e mantendo o motor responsivo.
+- T07, T10 a T12: em andamento / pendentes (próximo passo: agrupamento temporal de rajadas e reconstrução de trajetórias).
 
 As entregas foram validadas ponta a ponta:
 1. Extração segura e delimitada de texto para `.md`, `.tex`, `.pdf` e `.txt` com fronteira estrita às raízes autorizadas.
-2. O endpoint `/api/documents/read` permite inspecionar diretamente qualquer documento observado na linha do tempo ou nos cards de insight através de um modal com metadados, hash SHA-256 e texto completo.
-3. O worker autônomo agora mapeia ressonâncias conceituais entre projetos ativos (ex: TESSITURA ↔ EVIDA / lac-laboratorio), gerando hipóteses relacionais candidatas que o usuário pode adotar ou descartar.
-4. O descarte de propostas é registrado de forma rastreável em `continuity_feedback` (REA), impedindo reincidência de sugestões inadequadas sem apagar o histórico factual.
-5. O frontend suporta múltiplos insights preparados com paginação direta `[ < ] [ > ]` e descarte com 1 clique.
-6. Mensagens de erro de validação (ex: fontes inexistentes) foram humanizadas no backend.
-7. 100% dos testes CTest (5/5) e Playwright/Chromium passaram sem erros de CSP ou console.
+2. O endpoint `/api/documents` e a tela `#view-corpus` listam com fluidez os 978 documentos do acervo, exibindo resumos automáticos e permitindo leitura imediata sem sair do navegador.
+3. O filtro `kind=substantive` na Linha do Tempo permite visualizar apenas decisões, notas, pendências e commits de alto nível, mantendo o valor histórico sem afogar o usuário em logs de ingestão de arquivos.
+4. O worker autônomo agora mapeia ressonâncias conceituais entre projetos ativos (ex: TESSITURA ↔ EVIDA / lac-laboratorio), gerando hipóteses relacionais candidatas que o usuário pode adotar ou descartar.
+5. O descarte de propostas é registrado de forma rastreável em `continuity_feedback` (REA), impedindo reincidência de sugestões inadequadas sem apagar o histórico factual.
+6. O frontend suporta múltiplos insights preparados com paginação direta `[ < ] [ > ]` e descarte com 1 clique.
+7. 100% dos testes CTest (5/5) passaram com sucesso e a integridade da cadeia SHA-256 permanece intacta.
 
 ## Host confirmado e inferência
 

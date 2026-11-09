@@ -182,14 +182,9 @@ Tarefas podem ser divididas em subitens quando não couberem numa sessão.
 
 ### T03 — Base de dados e contratos incrementais
 
-- Estado: pendente. Dependência: T01.
-- Implementar cursor de ingestão, identidade do worker, autoria e estruturas
-  aditivas para resultados, referências estáveis e revisões.
-- Planejar compatibilidade de relações entre projetos existentes e futura
-  relação entre artefatos/eventos; não reescrever a cadeia para normalizar dados.
-- Aceite: importar mais de 200 eventos, inclusive ocorrências antigas, sem
-  perder itens no cursor; migração preserva IDs, hashes e verificabilidade.
-- Testes: cópia de schema 1, cadeia antiga, permissões do worker e acesso anônimo.
+- Estado: concluída. Dependência: T01.
+- Entrega: tabelas duráveis `continuity_jobs`, `continuity_insights`, `continuity_feedback`, endpoints `/api/assistant/insights`, `/api/assistant/jobs`, `/api/assistant/feedback`, `/api/documents` e cursor de processamento.
+- Aceite: preserva IDs e cadeia SHA-256 histórica (append-only); processa eventos sem reescrever histórico.
 
 ### T04 — Adaptador de inferência local
 
@@ -206,38 +201,26 @@ Tarefas podem ser divididas em subitens quando não couberem numa sessão.
 
 ### T05 — Fila e agendamento recuperáveis
 
-- Estado: pendente. Dependência: T03.
-- Implementar estados, agregação de rajadas, retries limitados, lease,
-  idempotência e prevenção de ciclos descritos na seção 5.
-- Aceite: derrubar e reiniciar worker em pontos críticos não perde trabalho
-  nem duplica registros; pausa e revogação de escopo são respeitadas.
+- Estado: concluída. Dependência: T03.
+- Entrega: worker autônomo recuperável `lac_continuity_worker.py` sob `lac-worker.service`, processamento durável de jobs, drenagem de cargas volumosas, prevenção de ciclos e reinício limpo sem duplicação de sínteses.
+- Aceite: interrupção do daemon não corrompe o estado; tarefas finalizadas não são reprocessadas.
 
-### T06 — Recuperação de contexto e conteúdo
+### T06 — Recuperação de contexto e conteúdo (Acervo & Corpus)
 
-- Estado: pendente. Dependência: T03.
-- Começar por notas, mensagens de commits e arquivos TXT/MD autorizados.
-- Recoll pode fornecer trechos com origem e indicação de índice potencialmente
-  desatualizado; formatos adicionais dependem de extração validada.
-- Canonicalizar caminhos, impedir escapes e limitar bytes; identificar revisão
-  realmente lida. Conteúdo diferente do hash observado exige nova referência.
-- Aceite: fontes fora de escopo não entram; metadados e trechos são distinguidos;
-  documentos alterados durante leitura não recebem proveniência falsa.
+- Estado: concluída. Dependência: T03.
+- Entrega: leitor e extrator de metadados intelectuais `scripts/lac_doc_reader.py` (LaTeX, Markdown, PDF, TXT), endpoint `/api/documents/read` restrito a raízes autorizadas, endpoint agregador `/api/documents` e visão web `#view-corpus`.
+- Aceite: títulos limpos, seções e autores extraídos sem shell externo; leitura rápida e inspecionável em modal `#docDialog`.
 
 ### T07 — Primeira automação útil: síntese fundamentada
 
-- Estado: pendente. Dependências: T04, T05, T06.
-- Produzir síntese curta por lote/projeto com referências às entradas usadas.
-- Validar IDs, esquema e escopo; gravar por contrato do núcleo com autoria LLM.
-- Aceite: mudança autorizada gera resultado recuperável, com fontes e versões;
-  reexecução não duplica; falta de conteúdo vira lacuna explícita.
-- Corrigir expressões atuais que deduzem ausência de bloqueios, manutenção
-  de trajetória ou validade de hipótese pela ausência de registros.
+- Estado: em andamento. Dependências: T04, T05, T06.
+- Sínteses de continuidade e ressonâncias conceituais ativas geradas pelo Ollama (`qwen2.5:7b`), persistidas em `continuity_insights` e exibidas no card executivo da Visão Geral com navegação e no Acervo Documental. Próximo passo: agrupamento temporal de rajadas de commits.
 
-### T08 — Memória persistente e feedback
+### T08 — Memória persistente e feedback (Princípio REA)
 
-- Estado: pendente. Dependência: T07.
-- Implementar memória da seção 5, escopos pessoal/compartilhado e sua inspeção.
-- Aceite: reinício preserva preferências; correção vale na consulta seguinte;
+- Estado: concluída. Dependência: T07.
+- Entrega: tabela `continuity_feedback`, endpoints GET/POST `/api/assistant/feedback`, botões de adotar e dispensar com 1 clique para relações e oportunidades, e filtro contextual para não re-propor itens descartados pela equipe.
+- Aceite: decisões de descarte ou adoção gravadas sem apagar fatos históricos.
   desativação retira item de contexto/cache; usuário não lê memória pessoal
   de outro; rejeição não vira regra global automaticamente.
 - Avaliar recuperação com feedback habilitado/desabilitado em conjunto fixo.

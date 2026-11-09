@@ -57,6 +57,92 @@ def extract_plain_text(path: Path, max_chars: int) -> tuple[str, str | None]:
         return '', f'Falha ao ler arquivo de texto: {e}'
 
 
+def clean_latex(s: str) -> str:
+    import re
+    s = re.sub(r'\\[a-zA-Z]+\*?(?:\[.*?\])?\{(.*?)\}', r'\1', s)
+    s = re.sub(r'\\[a-zA-Z]+', ' ', s)
+    s = re.sub(r'[\{\}\$]', '', s)
+    s = re.sub(r'\\\\', ' ', s)
+    return re.sub(r'\s+', ' ', s).strip()
+
+
+def extract_metadata(text: str, ext: str, filename: str) -> dict:
+    import re
+    title = ''
+    author = ''
+    date = ''
+
+    if ext == '.tex':
+        m = re.search(r'\\title(?:\[.*?\])?\{((?:[^{}]|\{[^{}]*\})*)\}', text, re.DOTALL)
+        if m:
+            title = clean_latex(m.group(1))
+
+        if not title:
+            m = re.search(r'\\begin\{center\}(.*?)\\end\{center\}', text, re.DOTALL)
+            if m:
+                bolds = re.findall(r'\\(?:Large|large|textbf|huge|Huge)\s*\{?([^\\\}]+)\}?', m.group(1))
+                if bolds:
+                    title = ' '.join(clean_latex(b) for b in bolds if len(b.strip()) > 3)
+
+        if not title:
+            m = re.search(r'\\section\*?\{((?:[^{}]|\{[^{}]*\})*)\}', text)
+            if m:
+                cand = clean_latex(m.group(1))
+                if not any(cand.lower().startswith(x) for x in ['introdu', 'resumo', 'sumário', 'apresenta']):
+                    title = cand
+
+        m_team = re.search(r'Equipe:\s*([^\n\\]+)', text, re.IGNORECASE)
+        if m_team:
+            author = m_team.group(1).strip()
+        elif not author:
+            m_auth = re.search(r'\\author(?:\[.*?\])?\{((?:[^{}]|\{[^{}]*\})*)\}', text, re.DOTALL)
+            if m_auth:
+                author = clean_latex(m_auth.group(1))
+
+    elif ext == '.md':
+        lines = [line.strip() for line in text.split('\n') if line.strip()]
+        for line in lines:
+            if line.startswith('# '):
+                title = line[2:].strip()
+                break
+        if text.startswith('---'):
+            m_fm_title = re.search(r'^title:\s*["\']?(.*?)["\']?\s*$', text, re.MULTILINE)
+            if m_fm_title:
+                title = m_fm_title.group(1).strip()
+
+    elif ext == '.pdf':
+        lines = [line.strip() for line in text.split('\n') if len(line.strip()) > 3]
+        if lines:
+            if len(lines) > 1 and len(lines[0]) < 60 and len(lines[1]) > 10:
+                title = f"{lines[0]} {lines[1]}".strip()
+            else:
+                title = lines[0]
+
+    if not title or len(title) < 4:
+        clean_name = Path(filename).stem
+        clean_name = re.sub(r'[-_]+', ' ', clean_name)
+        title = clean_name.strip().capitalize()
+
+    thematic_keywords = []
+    text_lower = text.lower()
+    known_themes = [
+        'NDVI', 'Sentinel-2', 'Sensoriamento Remoto', 'Solo', 'Pastagens',
+        'Pampa', 'Campanha Gaúcha', 'Agricultura Familiar', 'Pecuária', 'Leite',
+        'TED', 'RestauraBio', 'Epagri', 'Embrapa', 'Sistemas Socioecológicos',
+        'Inteligência Agropecuária', 'Grafo Argumentativo', 'Metodologia REA'
+    ]
+    for kt in known_themes:
+        if kt.lower() in text_lower:
+            thematic_keywords.append(kt)
+
+    return {
+        'title': title,
+        'author': author if author else None,
+        'date': date if date else None,
+        'themes': thematic_keywords[:6],
+    }
+
+
 def read_document(
     file_path: str | Path,
     authorized_roots: list[str | Path] | None = None,
@@ -117,10 +203,16 @@ def read_document(
     else:
         text, warning = extract_plain_text(target, max_chars)
 
+    meta = extract_metadata(text, ext, target.name)
+
     return {
         'ok': True,
         'path': str(target),
         'filename': target.name,
+        'title': meta['title'],
+        'author': meta['author'],
+        'date': meta['date'],
+        'themes': meta['themes'],
         'ext': ext,
         'bytes': raw_size,
         'sha256': file_hash,

@@ -76,6 +76,7 @@
     <nav aria-label="Navegação principal">
       <button class="nav active" type="button" data-view="overview"><svg><use href="#ic-home"/></svg>Visão geral</button>
       <button class="nav" type="button" data-view="timeline"><svg><use href="#ic-calendar"/></svg>Linha do tempo</button>
+      <button class="nav" type="button" data-view="corpus"><svg><use href="#ic-file"/></svg>Acervo & Documentos</button>
       <button class="nav" type="button" data-view="projects"><svg><use href="#ic-layers"/></svg>Projetos</button>
       <button class="nav" type="button" data-view="events"><svg><use href="#ic-activity"/></svg>Eventos</button>
       <button class="nav" type="button" data-view="relations"><svg><use href="#ic-links"/></svg>Relações</button>
@@ -188,7 +189,7 @@
           <div class="toolbar">
             <label class="search"><svg><use href="#ic-search"/></svg><input id="filterQ" type="search" placeholder="Buscar projetos, eventos, documentos..." aria-label="Buscar registros"></label>
             <label>Projeto <select id="filterProject"><option value="">Todos</option></select></label>
-            <label>Tipo <select id="filterKind"><option value="">Todos</option><option value="git_commit">Commit</option><option value="file_added">Arquivo novo</option><option value="file_changed">Arquivo alterado</option><option value="file_missing">Arquivo ausente</option><option value="decision">Decisão declarada</option><option value="note">Nota</option><option value="todo">Pendência</option><option value="todo_closed">Pendência concluída</option><option value="correction">Correção</option><option value="relation">Relação</option></select></label>
+            <label>Tipo <select id="filterKind"><option value="">Todos</option><option value="substantive">Decisões, Notas e Commits (sem arquivos brutos)</option><option value="git_commit">Commit</option><option value="file_added">Arquivo novo</option><option value="file_changed">Arquivo alterado</option><option value="file_missing">Arquivo ausente</option><option value="decision">Decisão declarada</option><option value="note">Nota</option><option value="todo">Pendência</option><option value="todo_closed">Pendência concluída</option><option value="correction">Correção</option><option value="relation">Relação</option></select></label>
             <label>De <input id="filterFrom" type="date"></label><label>Até <input id="filterTo" type="date"></label>
             <button id="btnWeekend" class="ghost compact" type="button">Últimos 7 dias</button>
             <button id="btnExport" class="ghost compact" type="button"><svg><use href="#ic-download"/></svg> Exportar diário</button>
@@ -208,6 +209,38 @@
           <section class="surface rail-card about-rail"><h3><svg><use href="#ic-info"/></svg>Sobre o LAC</h3><strong>Laboratório de Continuidade</strong><p>Observador determinístico de atividades, artefatos e relações, inspirado em REA, RIT e MPRR.</p><div class="motto">Sempre pronto. Sempre incompleto.</div></section>
         </aside>
       </div>
+      <section id="view-corpus" class="view content-card" hidden>
+        <div class="section-heading">
+          <div class="heading-with-icon">
+            <svg><use href="#ic-file"/></svg>
+            <div>
+              <h2>Acervo & Corpus Documental</h2>
+              <p>Manuscritos, relatórios científicos, notas técnicas e artigos com síntese intelectual e leitura imediata.</p>
+            </div>
+          </div>
+        </div>
+        <div class="toolbar">
+          <label class="search">
+            <svg><use href="#ic-search"/></svg>
+            <input id="filterCorpusQ" type="search" placeholder="Buscar no acervo por título, resumo ou arquivo..." aria-label="Buscar documentos">
+          </label>
+          <label>Projeto
+            <select id="filterCorpusProject"><option value="">Todos os projetos</option></select>
+          </label>
+          <label>Formato
+            <select id="filterCorpusExt">
+              <option value="">Todos os formatos</option>
+              <option value=".tex">LaTeX (.tex)</option>
+              <option value=".md">Markdown (.md)</option>
+              <option value=".pdf">PDF (.pdf)</option>
+              <option value=".txt">Texto (.txt)</option>
+            </select>
+          </label>
+          <button id="btnRefreshCorpus" class="ghost compact" type="button"><svg><use href="#ic-refresh"/></svg> Atualizar</button>
+        </div>
+        <div id="corpusStats" class="support mt-8">Carregando acervo...</div>
+        <div id="corpusListing" class="corpus-grid mt-16"></div>
+      </section>
       <section id="view-projects" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-layers"/></svg><div><h2>Projetos</h2><p>Visão consolidada dos projetos declarados e observados.</p></div></div><button class="secondary" data-go="sources" type="button">+ Cadastrar fonte</button></div><div id="projects" class="card-grid"></div></section>
       <section id="view-events" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-activity"/></svg><div><h2>Eventos</h2><p>Ocorrências observadas e registros declarados, com suas proveniências.</p></div></div><button class="secondary" type="button" data-go="timeline">Abrir busca completa</button></div><div id="eventsListing" class="events"></div></section>
       <section id="view-todos" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-check"/></svg><div><h2>Pendências abertas</h2><p>Encerramentos preservam o evento original.</p></div></div><button class="primary" type="button" data-open-note="todo">+ Adicionar pendência</button></div><div id="todos" class="events"></div></section>

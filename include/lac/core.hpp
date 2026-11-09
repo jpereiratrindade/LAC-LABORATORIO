@@ -44,6 +44,7 @@ std::string json_projects(Sqlite& db);
 std::string json_relations(Sqlite& db);
 std::string json_stats(Sqlite& db);
 std::string json_events(Sqlite& db, const std::map<std::string,std::string>& query);
+std::string json_documents(Sqlite& db, const std::map<std::string,std::string>& query);
 std::string json_todos(Sqlite& db);
 std::string json_continuity_insights(Sqlite& db, const std::string& project = "");
 std::string json_continuity_jobs(Sqlite& db);
