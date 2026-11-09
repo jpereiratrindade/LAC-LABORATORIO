@@ -19,21 +19,23 @@ essa escolha sem motivo técnico ou nova orientação do usuário.
 ## Leitura mínima
 
 1. [Plano e estados das tarefas](PLANO-ASSISTENTE-LOCAL.md).
-2. [Contratos e inventário T01](LAC-ASSISTENTE-CONTRATOS-001.md).
-3. [Arquitetura](ADR-004-ASSISTENTE-LOCAL.md).
-4. [Prévia T02](../prototypes/laboratorio/README.md) e
+2. [Diretriz de Autonomia e Continuidade](ADR-005-CONTINUIDADE-AUTONOMA.md).
+3. [Contratos e inventário T01](LAC-ASSISTENTE-CONTRATOS-001.md).
+4. [Arquitetura](ADR-004-ASSISTENTE-LOCAL.md).
+5. [Prévia T02](../prototypes/laboratorio/README.md) e
    [avaliação do modelo T04](avaliacoes/2026-11-09-ollama.md).
 
 ## Estado real
 
-Execução começou sobre `7807085`, com árvore limpa. Verificar Git na retomada.
+Execução desta etapa ocorreu sobre `c022e8e`. Verificar Git na retomada.
 
 - T00: concluída — plano e instruções de continuidade no repositório.
 - T01: concluída — host, inventário e contratos especificados.
 - T02: protótipo visual independente mantido em `prototypes/laboratorio/`; a imposição
   do mapa cru no frontend operacional foi revertida a pedido do usuário, restaurando
   a identidade visual superior e o propósito original (Omni-bar, Pulso e Guia).
-- T03: pendente — próximo trabalho de backend.
+- T03: em andamento — implementação do primeiro ciclo autônomo de continuidade
+  documental e relacional (ADR-005: fila durável de jobs e worker em background).
 - T04: concluída — adaptador isolado com testes simulados e reais iniciais.
 - T05 a T12: pendentes.
 
