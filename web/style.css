@@ -86,3 +86,49 @@ footer{font-size:10px;color:#6c869a;text-align:center;border-top:1px solid var(-
 .briefing-list li{line-height:1.45}
 .correction-item{color:#8b3d09;background:#fef7ed;padding:4px 8px;border-radius:5px;border-left:3px solid #d97706}
 .todo-open{color:#0b6186;font-weight:600}
+
+/* --------------------------------------------------------------------------
+ * DESIGN CONTEMPORÂNEO: Omni-Bar Flutuante, Pulse de Trabalho e Presets
+ * -------------------------------------------------------------------------- */
+.omni-composer{padding:16px 20px;border-radius:14px;border:1px solid #c0daf0;background:linear-gradient(180deg,#ffffff 0%,#f5f9fd 100%);box-shadow:0 6px 20px #0b34570d;margin-bottom:14px;display:grid;gap:12px;transition:border-color .2s,box-shadow .2s}
+.omni-composer:focus-within{border-color:#38b8e0;box-shadow:0 8px 24px #1279a815}
+.omni-input-wrapper{display:flex;align-items:center;gap:10px;background:#ffffff;border:1px solid #cbdde9;border-radius:10px;padding:5px 12px;box-shadow:inset 0 1px 3px #00000008}
+.omni-icon{font-size:18px;color:#0b739c;display:grid;place-items:center}
+.omni-input-wrapper input{flex:1;border:0;outline:none;font-size:14px;color:var(--ink);padding:8px 4px;min-height:36px;background:transparent}
+.omni-input-wrapper input::placeholder{color:#7692a8;font-size:13.5px}
+.omni-select{border:1px solid #c9dceb;background:#f0f6fa;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;color:#185375;outline:none}
+.omni-portals{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.portal-hint{font-size:11px;font-weight:750;color:#5c7d95;margin-right:2px}
+.portal-chip{border:1px solid #d0e0ec;background:#ffffff;color:#2c536f;padding:5px 10px;border-radius:7px;font-size:11.5px;font-weight:650;display:inline-flex;align-items:center;gap:6px;transition:all .15s}
+.portal-chip svg{width:14px;height:14px;color:#1d6f98}
+.portal-chip:hover{background:#edf5fb;border-color:#adcce1;color:#0d4366}
+.portal-chip.active{background:linear-gradient(100deg,#0a5f84,#074567);color:#ffffff;border-color:#1e6a8e;box-shadow:0 2px 6px #0b4e7025}
+.portal-chip.active svg{color:#8aeaff}
+.omni-presets{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-top:4px;border-top:1px dashed #d5e4ee}
+.preset-pill{border:1px solid #d9e6f0;background:#ffffff;color:#3d617b;padding:3px 9px;border-radius:14px;font-size:11px;font-weight:650;transition:all .15s}
+.preset-pill:hover{background:#e7f3fa;border-color:#2a85af;color:#0a4b6f}
+
+/* Pulse Card (Fio da Meada e Ritmo Semanal) */
+.pulse-card{display:grid;grid-template-columns:1.3fr 1fr 150px;align-items:center;gap:18px;padding:16px 20px;border-radius:12px;border:1px solid #cce0ee;background:#ffffff;box-shadow:var(--shadow);margin-bottom:14px}
+.pulse-left{min-width:0}
+.pulse-badge{font-size:10px;font-weight:800;letter-spacing:.12em;color:#0b7c5b;display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.pulse-dot{width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b98188;display:inline-block}
+.pulse-left h3{font-size:16px;margin:0 0 4px;color:#0b3655;letter-spacing:-.02em}
+.pulse-left p{font-size:12px;color:#5a768c;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pulse-next{border-left:1px solid #d6e5ef;padding-left:16px}
+.pulse-label{display:block;font-size:10px;font-weight:800;color:#0d6994;letter-spacing:.08em;margin-bottom:3px}
+.pulse-next strong{font-size:12.5px;color:#123a57;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pulse-week{display:flex;align-items:flex-end;gap:5px;height:40px;justify-content:flex-end;padding-right:4px}
+.pulse-bar{flex:1;min-width:12px;background:#e5edf3;border-radius:3px 3px 0 0;transition:all .2s}
+.pulse-bar.has-activity{background:linear-gradient(180deg,#38b8e0,#0b6d92)}
+.pulse-bar:hover{opacity:.8}
+
+/* Presets no Modal */
+.modal-presets{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:8px 12px;background:#f1f7fa;border-radius:8px;border:1px solid #d6e7f2}
+.form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+@media(max-width:980px){
+  .pulse-card{grid-template-columns:1fr;gap:12px}
+  .pulse-next{border-left:0;border-top:1px solid #d6e5ef;padding-left:0;padding-top:10px}
+  .pulse-week{justify-content:flex-start}
+}

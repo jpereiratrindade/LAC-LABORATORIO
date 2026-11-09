@@ -91,11 +91,12 @@ async function refreshStats() {
 }
 async function refreshProjectsOptions() {
   const projects = await api('/api/projects');
-  for (const [id,placeholder] of [['filterProject','Todos'],['reportProject','Todos os projetos']]) {
-    const el=$(id), before=el.value;
-    el.replaceChildren(new Option(placeholder,''));
-    for (const p of projects) el.add(new Option(p.name,p.name));
-    el.value=before;
+  for (const [id,placeholder] of [['filterProject','Todos'],['reportProject','Todos os projetos'],['omniProject','lac-laboratorio']]) {
+    const el=$(id); if (!el) continue;
+    const before=el.value;
+    el.replaceChildren(id==='omniProject' ? new Option('lac-laboratorio','lac-laboratorio') : new Option(placeholder,''));
+    for (const p of projects) if (![...el.options].some(o => o.value === p.name)) el.add(new Option(p.name,p.name));
+    if (before && [...el.options].some(o => o.value === before)) el.value=before;
   }
   return projects;
 }
@@ -126,11 +127,13 @@ async function refreshEvents() {
     return;
   }
   for (const e of list) renderEvent(target,e);
+  updatePulseCard(list);
 }
 async function refreshEventListing() {
   const list=await api('/api/events?limit=200'),target=$('eventsListing');target.replaceChildren();
   if (!list.length) {target.append(empty('Nenhum evento observado ou declarado ainda.'));return;}
   for (const e of list) renderEvent(target,e);
+  updatePulseCard(list);
 }
 async function refreshProjects() {
   const [projects,roots]=await Promise.all([api('/api/projects'),api('/api/roots')]);
@@ -479,3 +482,181 @@ async function logout() {
 }
 $('btnLogout').addEventListener('click',logout);
 $('btnAccess').addEventListener('click',logout);
+
+/* -------------------------------------------------------------
+ * EXPERIÊNCIA CONTEMPORÂNEA: Omni-Bar, Pulse Card & Presets Táteis
+ * ------------------------------------------------------------- */
+let currentPortal = 'system';
+let cachedLastEvent = null;
+
+const PRESET_TEMPLATES = {
+  where: {
+    title: 'Onde parei: ',
+    body: 'Parei na etapa ___. O próximo passo imediato é ___.\nArquivos/módulos em aberto: ___.'
+  },
+  decision: {
+    title: 'Decisão de Sistema: ',
+    body: 'Decidimos que ___ em vez de ___.\nMotivo principal: ___.'
+  },
+  block: {
+    title: 'Bloqueio / Gargalo: ',
+    body: 'Travado em ___.\nO que falta para destravar: ___.'
+  },
+  next: {
+    title: 'Próximo passo prioritário: ',
+    body: 'Ao retomar o trabalho, a primeira ação obrigatória é: ___.'
+  },
+  git_last: {
+    from_last: true
+  }
+};
+
+function updatePulseCard(events) {
+  if (!events || !events.length) return;
+  cachedLastEvent = events[0];
+  
+  const focus = $('pulseFocusTitle');
+  if (focus) focus.textContent = `${events[0].project} · Em Construção`;
+  
+  const lastAction = $('pulseLastAction');
+  if (lastAction) {
+    const kindLabel = (events[0].kind || '').replace('_', ' ');
+    lastAction.textContent = `Último marco [${kindLabel}]: ${events[0].title}`;
+  }
+
+  api('/api/todos').then(todos => {
+    const nextEl = $('pulseNextStep');
+    if (!nextEl) return;
+    if (todos && todos.length) {
+      nextEl.textContent = `Pendência #${todos[0].id}: ${todos[0].title}`;
+    } else {
+      nextEl.textContent = 'Tudo em dia! Defina a próxima etapa ou continue construindo.';
+    }
+  }).catch(() => {});
+
+  const barsContainer = $('pulseWeekBars');
+  if (barsContainer) {
+    barsContainer.replaceChildren();
+    const dayCounts = [0, 0, 0, 0, 0, 0, 0];
+    const now = new Date();
+    for (const e of events) {
+      const d = new Date(e.occurred_at || e.recorded_at);
+      const diffDays = Math.floor((now - d) / (86400 * 1000));
+      if (diffDays >= 0 && diffDays < 7) {
+        dayCounts[6 - diffDays]++;
+      }
+    }
+    const max = Math.max(...dayCounts, 1);
+    for (let i = 0; i < 7; i++) {
+      const count = dayCounts[i];
+      const bar = $create('div', 'pulse-bar');
+      bar.style.height = `${Math.max(16, Math.round((count / max) * 100))}%`;
+      bar.title = `${count} evento(s) há ${6 - i} dia(s)`;
+      if (count > 0) bar.classList.add('has-activity');
+      barsContainer.append(bar);
+    }
+  }
+}
+
+function applyPreset(key, isModal = false) {
+  const p = PRESET_TEMPLATES[key];
+  if (!p) return;
+
+  if (p.from_last && cachedLastEvent) {
+    if (isModal) {
+      $('noteForm').elements.title.value = `Continuidade: ${cachedLastEvent.title}`.slice(0, 200);
+      $('noteForm').elements.body.value = `Desdobramento do marco [${cachedLastEvent.kind}]:\n${cachedLastEvent.body || ''}`;
+      $('noteForm').elements.reference.value = cachedLastEvent.source_ref || '';
+    } else {
+      $('omniInput').value = `Continuidade de [${cachedLastEvent.title}]: `;
+      $('omniInput').focus();
+    }
+    return;
+  }
+
+  if (isModal) {
+    $('noteForm').elements.title.value = p.title;
+    $('noteForm').elements.body.value = p.body;
+    $('noteForm').elements.title.focus();
+  } else {
+    $('omniInput').value = `${p.title} `;
+    $('omniInput').focus();
+  }
+}
+
+async function handleOmniSubmit() {
+  const input = $('omniInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  const project = $('omniProject') && $('omniProject').value ? $('omniProject').value : 'lac-laboratorio';
+  let kind = 'note';
+  let refPrefix = 'omni';
+
+  if (currentPortal === 'system') {
+    kind = 'decision';
+    refPrefix = 'system:arch';
+  } else if (currentPortal === 'ai') {
+    kind = 'note';
+    refPrefix = 'dialog:ai';
+  } else if (currentPortal === 'doc') {
+    kind = 'note';
+    refPrefix = 'doc:concept';
+  } else if (currentPortal === 'git') {
+    kind = 'decision';
+    refPrefix = 'code:git';
+  }
+
+  if (/^onde parei|próxim/i.test(text)) kind = 'todo';
+  else if (/^bloqueio|travado|gargalo/i.test(text)) kind = 'todo';
+  else if (/^decid|adot/i.test(text)) kind = 'decision';
+
+  const button = $('btnOmniSend');
+  button.disabled = true;
+  try {
+    const payload = {
+      project: project,
+      kind: kind,
+      title: text.slice(0, 200),
+      body: text.length > 200 ? text : `Captura rápida via Omni-Bar [${currentPortal}]`,
+      reference: refPrefix
+    };
+    const res = await api('/api/notes', payload);
+    input.value = '';
+    showNotice(`Gravado instantaneamente (Evento #${res.id}).`);
+    await refresh();
+  } catch (err) {
+    showNotice('Erro ao gravar: ' + err.message, true);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+// Event Listeners dos Portais Dimensionais
+for (const btn of document.querySelectorAll('.portal-chip')) {
+  btn.addEventListener('click', () => {
+    for (const b of document.querySelectorAll('.portal-chip')) b.classList.remove('active');
+    btn.classList.add('active');
+    currentPortal = btn.dataset.portal;
+  });
+}
+
+// Event Listeners das Pílulas de Presets na Omni-Bar
+for (const pill of document.querySelectorAll('.omni-presets .preset-pill')) {
+  pill.addEventListener('click', () => applyPreset(pill.dataset.preset, false));
+}
+
+// Event Listeners das Pílulas de Presets no Modal
+for (const pill of document.querySelectorAll('.modal-presets .modal-preset')) {
+  pill.addEventListener('click', () => applyPreset(pill.dataset.preset, true));
+}
+
+if ($('btnOmniSend')) $('btnOmniSend').addEventListener('click', handleOmniSubmit);
+if ($('omniInput')) {
+  $('omniInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleOmniSubmit();
+    }
+  });
+}

@@ -100,11 +100,48 @@
     <div class="breadcrumb"><strong>LAC</strong><span>/</span><span id="currentView">Visão geral</span></div>
     <div class="page">
       <div id="dashboardIntro">
-        <section class="hero" aria-label="Apresentação do laboratório">
-          <div class="hero-text"><div class="eyebrow">CONTINUIDADE DO TRABALHO</div><h1>Memória operacional,<br><em>relacional e evolutiva.</em></h1><p>Registra acontecimentos, decisões, artefatos e relações entre projetos, com evidências verificáveis e integridade temporal.</p></div>
-          <div class="hero-art" aria-hidden="true"><img src="/assets/lac-symbol.svg" alt="" width="325" height="236"></div>
-          <ul class="hero-questions"><li>O que fizemos?</li><li>Por que fizemos?</li><li>O que decidimos?</li><li>Onde estão os documentos?</li><li>O que ficou incompleto?</li><li>Qual é a próxima ação?</li></ul>
-        </section>
+        <!-- Omni-Bar de Captura Fluida Contemporânea -->
+        <div class="omni-composer surface">
+          <div class="omni-input-wrapper">
+            <span class="omni-icon">⚡</span>
+            <input id="omniInput" type="text" placeholder="O que estamos construindo ou pensando agora? (Digite livremente ou cole do chat/documento...)" autocomplete="off">
+            <select id="omniProject" class="omni-select" title="Sistema em foco"><option value="lac-laboratorio">lac-laboratorio</option></select>
+            <button id="btnOmniSend" class="primary compact" type="button"><svg><use href="#ic-plus"/></svg> Gravar</button>
+          </div>
+          
+          <!-- Portais Dimensionais de Origem -->
+          <div class="omni-portals">
+            <span class="portal-hint">Origem:</span>
+            <button type="button" class="portal-chip active" data-portal="system"><svg><use href="#ic-layers"/></svg> 🏗️ Construção de Sistema</button>
+            <button type="button" class="portal-chip" data-portal="ai"><svg><use href="#ic-bolt"/></svg> 💬 Diálogo IA (ChatGPT/Gemini)</button>
+            <button type="button" class="portal-chip" data-portal="doc"><svg><use href="#ic-file"/></svg> 📄 Documento / PDF</button>
+            <button type="button" class="portal-chip" data-portal="git"><svg><use href="#ic-activity"/></svg> 💻 Código Git</button>
+          </div>
+
+          <!-- Pílulas de Pensamento Rápido (Anti-Tela em Branco) -->
+          <div class="omni-presets">
+            <button type="button" class="preset-pill" data-preset="where">⏸️ Onde parei</button>
+            <button type="button" class="preset-pill" data-preset="decision">💡 Decisão arquitetural</button>
+            <button type="button" class="preset-pill" data-preset="block">🚧 Bloqueio / Gargalo</button>
+            <button type="button" class="preset-pill" data-preset="next">🎯 Próxima ação imediata</button>
+            <button type="button" class="preset-pill" data-preset="git_last">✨ Puxar do último rastro</button>
+          </div>
+        </div>
+
+        <!-- Painel de Pulso & Retomada Suave -->
+        <div class="pulse-card surface">
+          <div class="pulse-left">
+            <div class="pulse-badge"><span class="pulse-dot"></span> CONTINUIDADE DO SISTEMA</div>
+            <h3 id="pulseFocusTitle">lac-laboratorio · Em Construção</h3>
+            <p id="pulseLastAction">Carregando último marco registrado...</p>
+          </div>
+          <div class="pulse-next">
+            <span class="pulse-label">🎯 PRÓXIMO PASSO DESTACADO:</span>
+            <strong id="pulseNextStep">Retomar atividade</strong>
+          </div>
+          <div class="pulse-week" id="pulseWeekBars" title="Ritmo de atividade dos últimos 7 dias">
+          </div>
+        </div>
       </div>
       <div id="notice" role="status" aria-live="polite" class="notice" hidden></div>
       <div id="dashboardBody" class="dashboard-body">
@@ -290,6 +327,39 @@
     <footer>REA — Reflexividade Epistêmica e Adaptativa &nbsp; | &nbsp; RIT — Reflexividade sob Integridade Temporal &nbsp; | &nbsp; MPRR — Percepção Relacional da Realidade<br><small>Os eventos observados demonstram alterações e registros; não demonstram, por si só, resultados científicos.</small></footer>
   </main>
 </div>
-<dialog id="noteDialog"><form id="noteForm" class="modal-content"><div class="modal-title"><div><span class="eyebrow">REGISTRO HUMANO · DECLARADO</span><h2>Novo registro</h2></div><button class="icon-button" id="closeNote" type="button" aria-label="Fechar">×</button></div><label>Projeto<input name="project" maxlength="120" required placeholder="ELO/OS"></label><label>Natureza do registro<select name="kind"><option value="note">Nota</option><option value="decision">Decisão</option><option value="todo">Pendência</option><option value="correction">Correção / retificação</option></select></label><label>Título<input name="title" maxlength="200" required placeholder="O que aconteceu?"></label><label>Descrição<textarea name="body" rows="5" maxlength="8000" placeholder="Contexto, limites, próximo passo..."></textarea></label><label>Referência (opcional)<input name="reference" maxlength="3000" placeholder="commit, caminho do arquivo, link..."></label><div class="modal-actions"><button type="button" id="cancelNote" class="ghost">Cancelar</button><button type="submit" class="primary">Registrar sem alterar o passado</button></div></form></dialog>
+<dialog id="noteDialog">
+  <form id="noteForm" class="modal-content">
+    <div class="modal-title">
+      <div><span class="eyebrow">REGISTRO HUMANO · CONTINUIDADE</span><h2>Novo registro de trabalho</h2></div>
+      <button class="icon-button" id="closeNote" type="button" aria-label="Fechar">×</button>
+    </div>
+    <div class="modal-presets">
+      <span class="portal-hint">Pílulas de intenção:</span>
+      <button type="button" class="preset-pill modal-preset" data-preset="where">⏸️ Onde parei</button>
+      <button type="button" class="preset-pill modal-preset" data-preset="decision">💡 Decisão</button>
+      <button type="button" class="preset-pill modal-preset" data-preset="block">🚧 Bloqueio</button>
+      <button type="button" class="preset-pill modal-preset" data-preset="next">🎯 Próximo passo</button>
+      <button type="button" class="preset-pill modal-preset" data-preset="git_last">✨ Último rastro</button>
+    </div>
+    <div class="form-row-2">
+      <label>Sistema / Projeto<input name="project" maxlength="120" required placeholder="lac-laboratorio"></label>
+      <label>Natureza do registro
+        <select name="kind">
+          <option value="decision">💡 Decisão</option>
+          <option value="note">📝 Nota</option>
+          <option value="todo">⏳ Pendência</option>
+          <option value="correction">🔄 Correção / Retificação</option>
+        </select>
+      </label>
+    </div>
+    <label>O que você quer guardar? (Título direto)<input name="title" maxlength="200" required placeholder="Ex: Decidido usar comunicação via stdio entre os módulos"></label>
+    <label>Contexto ou próximo passo (Corpo opcional)<textarea name="body" rows="4" maxlength="8000" placeholder="Cole trecho do chat da IA, detalhes da decisão ou o que falta..."></textarea></label>
+    <label>Referência de origem (opcional)<input name="reference" maxlength="3000" placeholder="chat:gpt, commit, arquivo.md..."></label>
+    <div class="modal-actions">
+      <button type="button" id="cancelNote" class="ghost">Cancelar</button>
+      <button type="submit" class="primary">Gravar na linha do tempo</button>
+    </div>
+  </form>
+</dialog>
 </body>
 </html>
