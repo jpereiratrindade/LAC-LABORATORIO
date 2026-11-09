@@ -81,6 +81,7 @@
       <button class="nav" type="button" data-view="relations"><svg><use href="#ic-links"/></svg>Relações</button>
       <button class="nav" type="button" data-view="sources"><svg><use href="#ic-db"/></svg>Fontes</button>
       <button class="nav" type="button" data-view="todos"><svg><use href="#ic-check"/></svg>Pendências</button>
+      <button class="nav" type="button" data-view="guide"><svg><use href="#ic-target"/></svg>Guia de Uso</button>
     </nav>
     <div class="side-rule"></div>
     <div class="side-section">GESTÃO</div>
@@ -146,7 +147,126 @@
       <section id="view-sources" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-db"/></svg><div><h2>Fontes monitoradas</h2><p>Somente os caminhos autorizados são observados; nenhum arquivo original é alterado.</p></div></div><button class="secondary" data-go="observation" type="button">Executar observação</button></div><form id="rootForm" class="surface form-grid"><label>Projeto<input name="project" required maxlength="120" placeholder="ELO/OS"></label><label>Tipo<select name="kind"><option value="git">Repositório Git</option><option value="docs">Diretório de documentos</option></select></label><label class="span2">Caminho absoluto no computador<input name="path" required placeholder="/run/media/.../dev/cpp/elo-os"></label><button class="primary self-end" type="submit">Registrar fonte</button></form><div id="roots" class="events"></div></section>
       <section id="view-observation" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-eye"/></svg><div><h2>Observação</h2><p>Uma varredura lê fontes autorizadas e cria somente eventos novos.</p></div></div><button id="btnScanFull" class="primary" type="button"><svg><use href="#ic-refresh"/></svg> Executar varredura</button></div><div class="info-panel"><strong>Observação explícita e idempotente</strong><p>Commits Git e alterações documentais são registros de mudança, não conclusões sobre a qualidade dos resultados. Cadastre fontes antes de observar.</p><button class="secondary" data-go="sources" type="button">Gerenciar fontes</button></div><div id="observationRoots" class="events"></div></section>
       <section id="view-integrity" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-shield"/></svg><div><h2>Integridade da trilha</h2><p>Verificação da cadeia SHA-256 armazenada no SQLite.</p></div></div><button id="btnVerifyFull" class="primary" type="button">Verificar agora</button></div><div id="integrityDetails" class="info-panel" role="status">Verificação ainda não executada nesta tela.</div><div class="info-panel"><strong>Limite da verificação</strong><p>A cadeia interna ajuda a detectar alterações, mas não substitui uma âncora independente. Para verificar uma âncora externa, utilize <code>./build/lac verify --anchor CAMINHO</code> no terminal. Esta interface não afirma validação externa.</p></div></section>
-      <section id="view-reports" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-report"/></svg><div><h2>Relatórios e diários</h2><p>Exportação em Markdown com datas de ocorrência, fontes e hashes de eventos.</p></div></div></div><form id="reportForm" class="surface form-grid"><label>De<input name="from" type="date"></label><label>Até<input name="to" type="date"></label><label class="span2">Projeto<select name="project" id="reportProject"><option value="">Todos os projetos</option></select></label><button class="primary self-end" type="submit"><svg><use href="#ic-download"/></svg> Exportar Markdown</button></form><div class="info-panel"><strong>Critério de exportação</strong><p>O diário registra até 5.000 eventos por exportação. Não inclui automaticamente conversas privadas em outras aplicações ou alterações fora das fontes cadastradas.</p></div></section>
+      <section id="view-reports" class="view content-card" hidden>
+        <div class="section-heading">
+          <div class="heading-with-icon"><svg><use href="#ic-report"/></svg><div><h2>Relatórios & Sínteses Executivas</h2><p>Sínteses automatizadas com foco em decisão, continuidade e histórico auditável.</p></div></div>
+        </div>
+        
+        <!-- Síntese Executiva Automatizada -->
+        <div class="surface rail-card briefing-panel">
+          <div class="briefing-header">
+            <div>
+              <span class="eyebrow">CONTINUIDADE INTELIGENTE</span>
+              <h3><svg><use href="#ic-bolt"/></svg> Síntese Executiva Automatizada</h3>
+              <p>Consolida automaticamente os avanços de código, decisões, desvios corrigidos e pendências sem rolagem de formulários.</p>
+            </div>
+            <div class="briefing-actions">
+              <button id="btnBriefingToday" class="primary" type="button"><svg><use href="#ic-bolt"/></svg> Gerar síntese de hoje</button>
+              <button id="btnBriefingWeek" class="secondary" type="button"><svg><use href="#ic-calendar"/></svg> Últimos 7 dias</button>
+              <button id="btnCopyBriefing" class="ghost" type="button" hidden><svg><use href="#ic-download"/></svg> Copiar Markdown</button>
+            </div>
+          </div>
+          <div id="briefingOutput" class="briefing-container">
+            <p class="support">Clique em um dos botões acima para gerar instantaneamente a síntese inteligente dos eventos registrados.</p>
+          </div>
+        </div>
+
+        <div class="section-heading" style="margin-top: 28px;">
+          <div><h3>Exportação completa do diário</h3><p>Exportação em lote de eventos brutos em Markdown.</p></div>
+        </div>
+        <form id="reportForm" class="surface form-grid">
+          <label>De<input name="from" type="date"></label>
+          <label>Até<input name="to" type="date"></label>
+          <label class="span2">Projeto<select name="project" id="reportProject"><option value="">Todos os projetos</option></select></label>
+          <button class="primary self-end" type="submit"><svg><use href="#ic-download"/></svg> Exportar Markdown completo</button>
+        </form>
+        <div class="info-panel"><strong>Critério de exportação</strong><p>O diário registra até 5.000 eventos por exportação. Não inclui automaticamente conversas privadas em outras aplicações ou alterações fora das fontes cadastradas.</p></div>
+      </section>
+
+      <section id="view-guide" class="view content-card" hidden>
+        <div class="section-heading">
+          <div class="heading-with-icon"><svg><use href="#ic-target"/></svg><div><h2>Guia de Uso & Metodologia Adaptativa</h2><p>Como transformar o LAC em um acelerador diário de continuidade operacional e epistêmica.</p></div></div>
+        </div>
+
+        <div class="guide-hero surface">
+          <div class="guide-hero-badge">MÉTODO RECOMENDADO</div>
+          <h3>A Regra dos 3 Hábitos Diários</h3>
+          <p>O LAC foi desenhado para ser <strong>invisível durante o foco</strong> e <strong>imediato na retomada</strong>. Elimine o tédio de preencher logs manuais seguindo esta rotina simples:</p>
+          
+          <div class="guide-steps-grid">
+            <div class="guide-step-card">
+              <div class="step-num">01</div>
+              <div class="step-time">🌅 Início do Dia · 1 minuto</div>
+              <h4>Retomar o Fio da Meada</h4>
+              <p>Abra o painel ou pergunte ao assistente: <em>"O que deixamos pendente ontem?"</em>. Leia a síntese executiva e comece sabendo exatamente qual é a próxima ação prioritária.</p>
+            </div>
+
+            <div class="guide-step-card">
+              <div class="step-num">02</div>
+              <div class="step-time">⚙️ Durante o Dia · Invisível</div>
+              <h4>Apenas o "Porquê"</h4>
+              <p>Não registre micro-edições. O Git e o LAC observam seus commits sozinhos a cada 180s. Registre apenas <strong>decisões de design</strong> (o motivo da escolha) e <strong>checkpoints antes de pausar</strong>.</p>
+            </div>
+
+            <div class="guide-step-card">
+              <div class="step-num">03</div>
+              <div class="step-time">🌙 Fim do Dia · 2 minutos</div>
+              <h4>Fechar o Ciclo</h4>
+              <p>Marque as pendências concluídas e gere a <strong>Síntese Executiva</strong> do dia. Se algo deu errado, use <code>correction</code>: documentar hipóteses refutadas economiza semanas de retrabalho.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="guide-columns">
+          <section class="surface guide-box">
+            <h3><svg><use href="#ic-check"/></svg> O que Registrar no LAC</h3>
+            <ul class="guide-list positive">
+              <li><strong>Decisões Arquiteturais:</strong> "Optamos por SQLite e C++26 para garantir portabilidade local sem dependências externas."</li>
+              <li><strong>Pontos de Parada:</strong> "Parei na validação do OTP; testes passaram, mas falta checar timeout de 60s."</li>
+              <li><strong>Correções e Adaptações:</strong> "Descartamos a biblioteca X devido a lentidão de I/O; adotando abordagem direta com regex."</li>
+              <li><strong>Pendências entre Sessões:</strong> "Validar os parâmetros da análise com o colega amanhã."</li>
+            </ul>
+          </section>
+
+          <section class="surface guide-box">
+            <h3><svg><use href="#ic-shield"/></svg> O que NÃO Registrar (Evite o Tédio!)</h3>
+            <ul class="guide-list negative">
+              <li><strong>Linhas de Código Soltas:</strong> Deixe isso para o Git. O LAC monitora commits automaticamente.</li>
+              <li><strong>Tarefas Triviais Imediatas:</strong> "Trocar nome de variável" não precisa de registro no LAC.</li>
+              <li><strong>Logs de Terminal ou Erros Passageiros:</strong> Registre apenas erros que forçaram uma mudança de estratégia conceitual.</li>
+            </ul>
+          </section>
+        </div>
+
+        <div class="surface guide-box" style="margin-top: 18px;">
+          <h3><svg><use href="#ic-bolt"/></svg> O Tripé Epistêmico: REA · RIT · MPRR</h3>
+          <p>O LAC se baseia em três pilares fundamentais da pesquisa e desenvolvimento contemporâneos:</p>
+          <div class="principles-grid">
+            <div class="principle-card">
+              <strong>REA · Reflexividade Epistêmica e Adaptativa</strong>
+              <p>O conhecimento evolui em ciclos de <em>Hipótese → Ação → Observação → Ajuste</em>. Quando um caminho é descartado, ele não é apagado: é registrado como retificação (<code>correction</code>), virando patrimônio do projeto.</p>
+            </div>
+            <div class="principle-card">
+              <strong>RIT · Integridade sob Integridade Temporal</strong>
+              <p>Cada evento recebe um hash criptográfico (SHA-256) encadeado em sequência imutável. Você pode provar a linha do tempo do seu trabalho sem depender de servidores em nuvem ou entidades externas.</p>
+            </div>
+            <div class="principle-card">
+              <strong>MPRR · Percepção Relacional da Realidade</strong>
+              <p>Projetos e ideias não existem isolados. As relações no LAC iniciam como hipóteses (<code>candidate</code>) e amadurecem para confirmadas conforme as evidências se consolidam.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="surface guide-box" style="margin-top: 18px;">
+          <h3><svg><use href="#ic-activity"/></svg> Conversando com o LAC via IA (IDE / Antigravity / MCP)</h3>
+          <p>Com o servidor MCP configurado na sua IDE, você pode interagir com o LAC diretamente no chat com frases naturais:</p>
+          <div class="mcp-examples">
+            <div class="mcp-cmd"><code>"O que avançamos no projeto lac-laboratorio nas últimas 24h?"</code><span>→ A IA consulta os eventos observados e gera o briefing.</span></div>
+            <div class="mcp-cmd"><code>"Guarde no LAC que decidimos usar o porto 8765 por padrão."</code><span>→ A IA registra a decisão atribuída com origem explícita.</span></div>
+            <div class="mcp-cmd"><code>"Crie uma pendência para verificar o SMTP com TLS amanhã."</code><span>→ Cria a pendência e exibe o ID gerado.</span></div>
+          </div>
+        </div>
+      </section>
       <section id="view-integrations" class="view content-card" hidden>
         <div class="section-heading"><div><h2>Integrações opcionais</h2><p>Consultas auxiliares não são importadas automaticamente para o histórico.</p></div><button id="btnIntegrationsRefresh" class="secondary" type="button">Atualizar estado</button></div>
         <div id="integrationStatus" class="events"></div>

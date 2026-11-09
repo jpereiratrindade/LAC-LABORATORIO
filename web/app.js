@@ -11,6 +11,7 @@ let activeView = 'overview';
 let debounce;
 const viewLabels = {overview:'Visão geral', timeline:'Linha do tempo', projects:'Projetos',
   events:'Eventos', relations:'Relações', sources:'Fontes', todos:'Pendências',
+  guide:'Guia de Uso & Metodologia',
   observation:'Observação', integrity:'Integridade', reports:'Relatórios',
   settings:'Preferências', integrations:'Integrações', about:'Sobre o LAC'};
 const eventIcons = {git_commit:'⌁',file_added:'+',file_changed:'↻',file_missing:'−',
@@ -207,6 +208,124 @@ async function verify(notify=true) {
   if(notify)showNotice(r.message,!r.ok);
   return r;
 }
+let lastBriefingMarkdown = '';
+
+async function generateExecutiveBriefing(days = 1) {
+  const container = $('briefingOutput');
+  container.innerHTML = '<p class="support">Processando eventos e compilando síntese inteligente...</p>';
+  try {
+    const cutoff = Date.now() - (days * 86400 * 1000);
+    const [eventsList, todosList] = await Promise.all([
+      api('/api/events?limit=300'),
+      api('/api/todos')
+    ]);
+    
+    const recent = eventsList.filter(e => {
+      const t = Date.parse(e.occurred_at || e.recorded_at);
+      return !Number.isNaN(t) ? t >= cutoff : true;
+    });
+
+    const commits = recent.filter(e => e.kind === 'git_commit');
+    const files = recent.filter(e => ['file_added', 'file_changed', 'file_missing'].includes(e.kind));
+    const decisions = recent.filter(e => e.kind === 'decision');
+    const corrections = recent.filter(e => e.kind === 'correction');
+    const closedTodos = recent.filter(e => e.kind === 'todo_closed');
+
+    const periodText = days === 1 ? 'Hoje / Últimas 24 horas' : `Últimos ${days} dias`;
+    
+    container.replaceChildren();
+    
+    const header = $create('div', 'briefing-result-header');
+    header.append(
+      $create('strong', '', `Síntese do Período: ${periodText}`),
+      $create('span', 'tag', `${recent.length} evento(s) analisado(s)`)
+    );
+    container.append(header);
+
+    // 1. Avanços
+    const sec1 = $create('div', 'briefing-section');
+    sec1.append($create('h4', '', '🚀 1. Avanços Observados (Código e Arquivos)'));
+    if (commits.length || files.length) {
+      const ul = $create('ul', 'briefing-list');
+      for (const c of commits) ul.append($create('li', '', `[Git] ${c.title}`));
+      for (const f of files) ul.append($create('li', '', `[Arquivo] ${f.title} (${f.kind})`));
+      sec1.append(ul);
+    } else {
+      sec1.append($create('p', 'support', 'Nenhum commit ou modificação de arquivo registrada no período.'));
+    }
+    container.append(sec1);
+
+    // 2. Decisões
+    const sec2 = $create('div', 'briefing-section');
+    sec2.append($create('h4', '', '💡 2. Decisões e Hipóteses Firmadas'));
+    if (decisions.length) {
+      const ul = $create('ul', 'briefing-list');
+      for (const d of decisions) {
+        const li = $create('li');
+        li.append($create('strong', '', d.title), $create('span', 'muted', ` (${d.actor === 'llm' ? 'LLM' : 'Pessoa'}): `), $create('span', '', d.body || ''));
+        ul.append(li);
+      }
+      sec2.append(ul);
+    } else {
+      sec2.append($create('p', 'support', 'Nenhuma nova decisão declarada no intervalo.'));
+    }
+    container.append(sec2);
+
+    // 3. Gestão Adaptativa / Correções
+    const sec3 = $create('div', 'briefing-section');
+    sec3.append($create('h4', '', '🔄 3. Gestão Adaptativa (Correções e Ajustes de Rota)'));
+    if (corrections.length) {
+      const ul = $create('ul', 'briefing-list');
+      for (const corr of corrections) {
+        const li = $create('li', 'correction-item');
+        li.append($create('strong', '', `⚠ ${corr.title}: `), $create('span', '', corr.body || ''));
+        ul.append(li);
+      }
+      sec3.append(ul);
+    } else {
+      sec3.append($create('p', 'support', 'Nenhum desvio ou hipótese refutada registrada. Rumo mantido.'));
+    }
+    container.append(sec3);
+
+    // 4. Próximos Passos e Pendências
+    const sec4 = $create('div', 'briefing-section');
+    sec4.append($create('h4', '', '📌 4. Próximos Passos e Continuidade'));
+    const ulTodos = $create('ul', 'briefing-list');
+    if (closedTodos.length) {
+      for (const ct of closedTodos) ulTodos.append($create('li', '', `✔ Concluído: ${ct.title}`));
+    }
+    if (todosList.length) {
+      for (const t of todosList) ulTodos.append($create('li', 'todo-open', `⏳ [Em aberto] #${t.id} ${t.title}`));
+    } else {
+      ulTodos.append($create('li', '', '✔ Nenhuma pendência em aberto no momento.'));
+    }
+    sec4.append(ulTodos);
+    container.append(sec4);
+
+    let md = `# LAC — Síntese Executiva Automatizada (${periodText})\n\n`;
+    md += `## 1. 🚀 Avanços Observados\n`;
+    if (commits.length || files.length) {
+      for (const c of commits) md += `- [Git] ${c.title}\n`;
+      for (const f of files) md += `- [Arquivo] ${f.title}\n`;
+    } else md += `- Nenhum commit no período.\n`;
+    md += `\n## 2. 💡 Decisões & Hipóteses\n`;
+    if (decisions.length) for (const d of decisions) md += `- **${d.title}**: ${d.body}\n`;
+    else md += `- Nenhuma nova decisão declarada.\n`;
+    md += `\n## 3. 🔄 Gestão Adaptativa (Correções)\n`;
+    if (corrections.length) for (const c of corrections) md += `- ⚠ **${c.title}**: ${c.body}\n`;
+    else md += `- Trajetória mantida.\n`;
+    md += `\n## 4. 📌 Próximos Passos & Pendências\n`;
+    for (const ct of closedTodos) md += `- ✔ Concluído: ${ct.title}\n`;
+    if (todosList.length) for (const t of todosList) md += `- ⏳ Aberto: #${t.id} ${t.title}\n`;
+    else md += `- Todas as pendências em dia!\n`;
+    lastBriefingMarkdown = md;
+
+    $('btnCopyBriefing').hidden = false;
+  } catch (err) {
+    container.innerHTML = `<p class="notice error">Erro ao compilar síntese: ${err.message}</p>`;
+  }
+}
+
 async function exportReport(params){
   const response=await fetch(`/api/report?${params}`,{headers:authHeaders()});
   if(!response.ok)throw new Error('Falha ao gerar diário');
@@ -242,6 +361,15 @@ $('reportForm').addEventListener('submit',async e=>{
   e.preventDefault();const values=new FormData(e.currentTarget),q=new URLSearchParams();
   for(const k of ['from','to','project'])if(values.get(k))q.set(k,String(values.get(k)));
   try{await exportReport(q);}catch(err){showNotice(err.message,true);}
+});
+$('btnBriefingToday').addEventListener('click',()=>generateExecutiveBriefing(1));
+$('btnBriefingWeek').addEventListener('click',()=>generateExecutiveBriefing(7));
+$('btnCopyBriefing').addEventListener('click',async()=>{
+  if(!lastBriefingMarkdown)return;
+  try{
+    await navigator.clipboard.writeText(lastBriefingMarkdown);
+    showNotice('Síntese copiada para a área de transferência em formato Markdown!');
+  }catch(e){showNotice('Erro ao copiar: '+e.message,true);}
 });
 for(const [id,path] of [['noteForm','/api/notes'],['relationForm','/api/relations'],['rootForm','/api/roots']]){
   $(id).addEventListener('submit',async e=>{
