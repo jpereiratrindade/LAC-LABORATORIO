@@ -134,15 +134,48 @@ class ContinuityWorker:
             summary = result.get('summary', 'Síntese não gerada.')
             gaps_json = json.dumps(result.get('gaps', []), ensure_ascii=False)
 
+            # Detect candidate cross-project relations (MPRR)
+            cur.execute("SELECT id, name FROM projects WHERE id != ?", (job['project_id'],))
+            other_projects = cur.fetchall()
+
+            candidate_relations = []
+            text_lower = doc_res['text'].lower()
+            summary_lower = summary.lower()
+
+            for other in other_projects:
+                target_name = other['name']
+                if target_name.lower() in text_lower or target_name.lower() in summary_lower:
+                    candidate_relations.append({
+                        'target_project': target_name,
+                        'label': f"Diálogo conceitual observado em {job['path']} ({job['project_name']} ↔ {target_name})",
+                        'type': 'references'
+                    })
+                elif any(m in text_lower for m in ['mprr', 'rit', 'rea', 'ontologia', 'grafo argumentativo']) and target_name in ('TESSITURA', 'EVIDA', 'METIS', 'lac-laboratorio'):
+                    candidate_relations.append({
+                        'target_project': target_name,
+                        'label': f"Convergência metodológica em {job['path']} sobre princípios do laboratório",
+                        'type': 'extends'
+                    })
+
+            # Deduplicate by target_project
+            seen_targets = set()
+            unique_relations = []
+            for r in candidate_relations:
+                if r['target_project'] not in seen_targets:
+                    seen_targets.add(r['target_project'])
+                    unique_relations.append(r)
+
+            relations_json = json.dumps(unique_relations, ensure_ascii=False)
+
             # Persist derived insight
             cur.execute("""
                 INSERT INTO continuity_insights(
                     job_id, event_id, project_id, document_path,
-                    summary, gaps_json, model, created_at, event_hash
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    summary, gaps_json, model, created_at, event_hash, relations_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 job_id, job['event_id'], job['project_id'], job['path'],
-                summary, gaps_json, self.model, utc_now_iso(), job['event_hash']
+                summary, gaps_json, self.model, utc_now_iso(), job['event_hash'], relations_json
             ))
 
             cur.execute(

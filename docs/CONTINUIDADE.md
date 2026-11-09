@@ -34,24 +34,22 @@ Execução desta etapa ocorreu sobre `c022e8e`. Verificar Git na retomada.
 - T02: protótipo visual independente mantido em `prototypes/laboratorio/`; a imposição
   do mapa cru no frontend operacional foi revertida a pedido do usuário, restaurando
   a identidade visual superior e o propósito original (Omni-bar, Pulso e Guia).
-- T03: concluída a Entrega 1 (ADR-005: Motor de Continuidade Autônomo). Fila durável
-  `continuity_jobs`, worker `lac_continuity_worker.py` (serviço `lac-worker.service`),
-  persistência em `continuity_insights` e exibição no painel web.
+- T03: concluída a Entrega 1 e 2 (ADR-005: Continuidade Autônoma e Memória Relacional).
+  Fila durável `continuity_jobs`, worker `lac_continuity_worker.py` (serviço `lac-worker.service`),
+  persistência de sínteses e conexões relacionais em `continuity_insights`.
+  Acesso textual direto via endpoint seguro `/api/documents/read` e modal `#docDialog`.
+  Percepção relacional autônoma (MPRR) com sugestão de conexões candidatas e adoção com 1 clique.
+  Navegação entre múltiplos insights preparados no painel da Visão Geral.
 - T04: concluída — adaptador isolado com testes simulados e reais iniciais.
-- T05 a T12: pendentes (próximo passo: Entrega 2 — Memória e Conexões Relacionais).
+- T05 a T12: pendentes (próximo passo: T05/T06 — feedback inspecionável e trilhas de trajetória).
 
-O primeiro teste de verdade foi executado com sucesso: a alteração de um documento
-Markdown autorizado (`TESSITURA/docs/ADR-004-GRAFO-ARGUMENTATIVO.md`) gerou
-automaticamente um job durável, processado pelo worker com extração de texto e inferência
-no Ollama (`qwen2.5:7b`), persistindo a síntese e as lacunas conceituais e exibindo
-o card de Descoberta Preparada no painel web sem qualquer intervenção humana manual.
-
-O frontend operacional restabeleceu a interface limpa e contemporânea: Omni-composer,
-painel de pulso, trilha de integridade e linha do tempo com filtros. A observação e
-interpretação documental foram estritamente restritas a `.pdf`, `.md`, `.txt` e `.tex`
-(no núcleo C++ e no extrator delimitado `scripts/lac_doc_reader.py`), eliminando a
-poluição por arquivos de infraestrutura (.zip, .sh, etc.). Testado ponta a ponta
-com CTest (4/4 passando).
+As entregas 1 e 2 foram validadas ponta a ponta:
+1. Extração segura e delimitada de texto para `.md`, `.tex`, `.pdf` e `.txt` com fronteira estrita às raízes autorizadas.
+2. O endpoint `/api/documents/read` permite inspecionar diretamente qualquer documento observado na linha do tempo ou nos cards de insight através de um modal com metadados, hash SHA-256 e texto completo.
+3. O worker autônomo agora mapeia ressonâncias conceituais entre projetos ativos (ex: TESSITURA ↔ EVIDA / lac-laboratorio), gerando hipóteses relacionais candidatas que o usuário pode adotar com um clique.
+4. O frontend suporta múltiplos insights preparados com paginação direta `[ < ] [ > ]`.
+5. Mensagens de erro de validação (ex: fontes inexistentes) foram humanizadas no backend.
+6. 100% dos testes CTest (5/5) e Playwright/Chromium passaram sem erros de CSP ou console.
 
 ## Host confirmado e inferência
 

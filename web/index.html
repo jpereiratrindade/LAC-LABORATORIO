@@ -146,15 +146,26 @@
         <!-- Painel de Descoberta e Continuidade Autônoma (ADR-005) -->
         <div id="autonomousInsightCard" class="pulse-card surface insight-card" hidden>
           <div class="pulse-left">
-            <div class="pulse-badge"><span class="pulse-dot insight-dot"></span> ⚡ DESCOBERTA PREPARADA · CONTINUIDADE AUTÔNOMA</div>
+            <div class="pulse-badge">
+              <span class="pulse-dot insight-dot"></span> ⚡ DESCOBERTA PREPARADA · CONTINUIDADE AUTÔNOMA
+              <div class="insight-nav-wrapper">
+                <button id="btnPrevInsight" type="button" class="preset-pill" title="Insight anterior">‹</button>
+                <span id="insightCounter" class="insight-count">1/1</span>
+                <button id="btnNextInsight" type="button" class="preset-pill" title="Próximo insight">›</button>
+              </div>
+            </div>
             <h3 id="insightDocTitle">Documento</h3>
             <p id="insightSummary">Carregando síntese...</p>
             <div id="insightGapsList" class="insight-gaps"></div>
+            <div id="insightRelationsContainer" class="insight-relations"></div>
           </div>
           <div class="pulse-next">
             <span class="pulse-label">🎯 OPORTUNIDADE DE INVESTIGAÇÃO:</span>
             <strong id="insightOpportunity">Examinar relações e lacunas conceituais</strong>
-            <button id="btnAdoptGap" type="button" class="primary compact insight-btn">Adotar como pendência</button>
+            <div class="insight-action-row">
+              <button id="btnAdoptGap" type="button" class="primary compact insight-btn">Adotar como pendência</button>
+              <button id="btnViewInsightDoc" type="button" class="secondary compact insight-btn">Examinar texto</button>
+            </div>
           </div>
           <div class="pulse-week insight-meta">
             <span id="insightModelBadge" class="eyebrow insight-model">Ollama local</span>
@@ -200,7 +211,7 @@
       <section id="view-events" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-activity"/></svg><div><h2>Eventos</h2><p>Ocorrências observadas e registros declarados, com suas proveniências.</p></div></div><button class="secondary" type="button" data-go="timeline">Abrir busca completa</button></div><div id="eventsListing" class="events"></div></section>
       <section id="view-todos" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-check"/></svg><div><h2>Pendências abertas</h2><p>Encerramentos preservam o evento original.</p></div></div><button class="primary" type="button" data-open-note="todo">+ Adicionar pendência</button></div><div id="todos" class="events"></div></section>
       <section id="view-relations" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-links"/></svg><div><h2>Relações explícitas</h2><p>Relações candidatas não demonstram causalidade.</p></div></div></div><form id="relationForm" class="surface form-grid"><label>Projeto de origem<input name="from" required maxlength="120" placeholder="TESSITURA"></label><label>Projeto relacionado<input name="to" required maxlength="120" placeholder="EVIDA"></label><label class="span2">Descrição da relação<input name="label" required maxlength="300" placeholder="Proposta de integração documental"></label><label>Estado<select name="state"><option value="candidate">Candidata</option><option value="user_confirmed">Confirmada pelo usuário (não validada cientificamente)</option></select></label><button class="primary self-end" type="submit">Registrar relação</button></form><div id="relations" class="events"></div></section>
-      <section id="view-sources" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-db"/></svg><div><h2>Fontes monitoradas</h2><p>Somente os caminhos autorizados são observados; nenhum arquivo original é alterado.</p></div></div><button class="secondary" data-go="observation" type="button">Executar observação</button></div><form id="rootForm" class="surface form-grid"><label>Projeto<input name="project" required maxlength="120" placeholder="ELO/OS"></label><label>Tipo<select name="kind"><option value="git">Repositório Git</option><option value="docs">Diretório de documentos</option></select></label><label class="span2">Caminho absoluto no computador<input name="path" required placeholder="/run/media/.../dev/cpp/elo-os"></label><button class="primary self-end" type="submit">Registrar fonte</button></form><div id="roots" class="events"></div></section>
+      <section id="view-sources" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-db"/></svg><div><h2>Fontes monitoradas</h2><p>Somente os caminhos autorizados são observados; nenhum arquivo original é alterado.</p></div></div><button class="secondary" data-go="observation" type="button">Executar observação</button></div><form id="rootForm" class="surface form-grid"><label>Projeto<input name="project" required maxlength="120" placeholder="ELO/OS"></label><label>Tipo<select name="kind"><option value="git">Repositório Git</option><option value="docs">Diretório de documentos</option></select></label><label class="span2">Caminho acessível no servidor LAC (ou pasta montada)<input name="path" required placeholder="/run/media/... ou /mnt/compartilhamento"></label><p class="span2 field-hint">O LAC executa no servidor central. O caminho informado deve existir no sistema de arquivos do servidor ou ser uma pasta de rede compartilhada montada.</p><button class="primary self-end" type="submit">Registrar fonte</button></form><div id="roots" class="events"></div></section>
       <section id="view-observation" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-eye"/></svg><div><h2>Observação</h2><p>Uma varredura lê fontes autorizadas e cria somente eventos novos.</p></div></div><button id="btnScanFull" class="primary" type="button"><svg><use href="#ic-refresh"/></svg> Executar varredura</button></div><div class="info-panel"><strong>Observação explícita e idempotente</strong><p>Commits Git e alterações documentais são registros de mudança, não conclusões sobre a qualidade dos resultados. Cadastre fontes antes de observar.</p><button class="secondary" data-go="sources" type="button">Gerenciar fontes</button></div><div id="observationRoots" class="events"></div></section>
       <section id="view-integrity" class="view content-card" hidden><div class="section-heading"><div class="heading-with-icon"><svg><use href="#ic-shield"/></svg><div><h2>Integridade da trilha</h2><p>Verificação da cadeia SHA-256 armazenada no SQLite.</p></div></div><button id="btnVerifyFull" class="primary" type="button">Verificar agora</button></div><div id="integrityDetails" class="info-panel" role="status">Verificação ainda não executada nesta tela.</div><div class="info-panel"><strong>Limite da verificação</strong><p>A cadeia interna ajuda a detectar alterações, mas não substitui uma âncora independente. Para verificar uma âncora externa, utilize <code>./build/lac verify --anchor CAMINHO</code> no terminal. Esta interface não afirma validação externa.</p></div></section>
       <section id="view-reports" class="view content-card" hidden>
@@ -227,7 +238,7 @@
           </div>
         </div>
 
-        <div class="section-heading" style="margin-top: 28px;">
+        <div class="section-heading mt-28">
           <div><h3>Exportação completa do diário</h3><p>Exportação em lote de eventos brutos em Markdown.</p></div>
         </div>
         <form id="reportForm" class="surface form-grid">
@@ -294,7 +305,7 @@
           </section>
         </div>
 
-        <div class="surface guide-box" style="margin-top: 18px;">
+        <div class="surface guide-box mt-18">
           <h3><svg><use href="#ic-bolt"/></svg> O Tripé Epistêmico: REA · RIT · MPRR</h3>
           <p>O LAC se baseia em três pilares fundamentais da pesquisa e desenvolvimento contemporâneos:</p>
           <div class="principles-grid">
@@ -313,7 +324,7 @@
           </div>
         </div>
 
-        <div class="surface guide-box" style="margin-top: 18px;">
+        <div class="surface guide-box mt-18">
           <h3><svg><use href="#ic-activity"/></svg> Conversando com o LAC via IA (IDE / Antigravity / MCP)</h3>
           <p>Com o servidor MCP configurado na sua IDE, você pode interagir com o LAC diretamente no chat com frases naturais:</p>
           <div class="mcp-examples">
@@ -379,6 +390,34 @@
       <button type="submit" class="primary">Gravar na linha do tempo</button>
     </div>
   </form>
+</dialog>
+<dialog id="docDialog">
+  <div class="modal-content doc-modal-content">
+    <div class="modal-title">
+      <div>
+        <span class="eyebrow" id="docModalProject">DOCUMENTO AUTORIZADO</span>
+        <h2 id="docModalFilename">Documento</h2>
+      </div>
+      <button class="icon-button" id="closeDoc" type="button" aria-label="Fechar">×</button>
+    </div>
+    <div class="doc-meta-bar">
+      <span class="tag" id="docModalExt">.md</span>
+      <span class="tag" id="docModalSize">0 bytes</span>
+      <span class="doc-meta-path" id="docModalPath">/caminho</span>
+      <span class="doc-meta-hash" id="docModalHash">SHA-256</span>
+    </div>
+    <div id="docModalInsightSection" class="doc-insight-box" hidden>
+      <strong>⚡ Síntese e Descoberta Preparada:</strong>
+      <p id="docModalInsightSummary"></p>
+    </div>
+    <div class="doc-preview-wrapper">
+      <pre id="docModalText" class="doc-preview-text"></pre>
+    </div>
+    <div class="modal-actions">
+      <button type="button" id="btnCopyDocText" class="secondary">Copiar texto</button>
+      <button type="button" id="btnCloseDocBtn" class="ghost">Fechar</button>
+    </div>
+  </div>
 </dialog>
 </body>
 </html>

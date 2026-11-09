@@ -254,11 +254,13 @@ void initialize(Sqlite& db) {
       project_id INTEGER NOT NULL REFERENCES projects(id),
       document_path TEXT NOT NULL, summary TEXT NOT NULL,
       gaps_json TEXT NOT NULL, model TEXT NOT NULL,
-      created_at TEXT NOT NULL, event_hash TEXT NOT NULL);
+      created_at TEXT NOT NULL, event_hash TEXT NOT NULL,
+      relations_json TEXT DEFAULT '[]');
     CREATE INDEX IF NOT EXISTS insights_project ON continuity_insights(project_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS events_occurred ON events(occurred_at DESC,id DESC);
     CREATE INDEX IF NOT EXISTS events_project ON events(project_id,occurred_at DESC);
   )SQL");
+  try { db.exec("ALTER TABLE continuity_insights ADD COLUMN relations_json TEXT DEFAULT '[]'"); } catch(...) {}
   db.exec("PRAGMA user_version=1");
   Stmt fts(db.db,"SELECT sqlite_compileoption_used('ENABLE_FTS5')");
   if(fts.step()!=SQLITE_ROW || fts.number(0)==0)throw std::runtime_error("SQLite FTS5 required");
@@ -552,8 +554,8 @@ std::string json_todos(Sqlite& db){
   return out+"]";
 }
 std::string json_continuity_insights(Sqlite& db, const std::string& project) {
-  std::string sql = "SELECT i.id, i.event_id, p.name, i.document_path, i.summary, i.gaps_json, i.model, i.created_at, i.event_hash "
-                    "FROM continuity_insights i JOIN projects p ON p.id=i.project_id ";
+  std::string sql = "SELECT i.id, i.event_id, p.name, e.source_ref, i.summary, i.gaps_json, i.model, i.created_at, i.event_hash, COALESCE(i.relations_json, '[]') "
+                    "FROM continuity_insights i JOIN projects p ON p.id=i.project_id JOIN events e ON e.id=i.event_id ";
   if(!project.empty()) sql += "WHERE p.name=? ";
   sql += "ORDER BY i.id DESC LIMIT 50";
   Stmt s(db.db, sql);
@@ -571,7 +573,8 @@ std::string json_continuity_insights(Sqlite& db, const std::string& project) {
            ",\"gaps\":" + (s.str(5).empty() ? "[]" : s.str(5)) +
            ",\"model\":" + json_string(s.str(6)) +
            ",\"created_at\":" + json_string(s.str(7)) +
-           ",\"event_hash\":" + json_string(s.str(8)) + "}";
+           ",\"event_hash\":" + json_string(s.str(8)) +
+           ",\"relations\":" + (s.str(9).empty() ? "[]" : s.str(9)) + "}";
   }
   out += "]";
   return out;

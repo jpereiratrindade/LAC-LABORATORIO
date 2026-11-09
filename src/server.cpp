@@ -269,6 +269,16 @@ void handle_client(int fd,Sqlite& db,int port,const fs::path& web_root,
       else if(path=="/api/todos")output=json_todos(db);
       else if(path=="/api/assistant/insights")output=json_continuity_insights(db, value(q,"project"));
       else if(path=="/api/assistant/jobs")output=json_continuity_jobs(db);
+      else if(path=="/api/documents/read"){
+        std::string authorized_roots;
+        for(const auto& r: roots(db)){
+          if(!authorized_roots.empty()) authorized_roots += "|";
+          authorized_roots += r.path;
+        }
+        const std::string params = param_str + "&roots=" + encode(authorized_roots);
+        output=integration_request(integration_helper,integration_config,"read_document",params);
+        if(output.starts_with("{\"error\":"))status=400;
+      }
       else {json_error(fd,404,"route not found");return;}
     } else {
       if(path=="/api/integrations/configure"){
@@ -294,9 +304,21 @@ void handle_client(int fd,Sqlite& db,int port,const fs::path& web_root,
     }
     respond(fd,status,content_type,output);
   }catch(const std::exception& ex){
-    // Invalid user input is a 400; internal errors are not exposed as SQL or paths.
     std::cerr<<"request error: "<<ex.what()<<"\n";
-    json_error(fd,path.starts_with("/api/auth/")?503:400,"request failed; see local server log");
+    std::string err_msg = "request failed; see local server log";
+    std::string what = ex.what();
+    if(what == "root path must be an existing directory") {
+      err_msg = "O caminho informado não existe ou não é um diretório acessível no servidor LAC.";
+    } else if(what == "path already belongs to a different project") {
+      err_msg = "Este caminho já está cadastrado em outro projeto.";
+    } else if(what == "kind must be git or docs") {
+      err_msg = "Tipo inválido: selecione git ou docs.";
+    } else if(what == "todo already closed") {
+      err_msg = "Esta pendência já foi concluída anteriormente.";
+    } else if(what.find("SQL") == std::string::npos && what.find("syntax") == std::string::npos && what.size() < 120) {
+      err_msg = what;
+    }
+    json_error(fd,path.starts_with("/api/auth/")?503:400, err_msg);
   }
 }
 } // namespace

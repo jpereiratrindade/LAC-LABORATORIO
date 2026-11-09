@@ -62,7 +62,14 @@ def read_document(
     authorized_roots: list[str | Path] | None = None,
     max_chars: int = DEFAULT_MAX_TEXT_CHARS,
 ) -> dict:
-    target = Path(file_path).resolve()
+    target = Path(file_path)
+    if not target.is_file() and authorized_roots:
+        for r in authorized_roots:
+            candidate = (Path(r) / target).resolve()
+            if candidate.is_file():
+                target = candidate
+                break
+    target = target.resolve()
 
     if not target.is_file():
         return {'ok': False, 'error': f'Arquivo não encontrado: {target}', 'path': str(target)}

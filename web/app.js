@@ -104,6 +104,12 @@ function renderEvent(target,e) {
   const element=card(e.title,e.body,[[e.project],[(e.kind||'').replaceAll('_',' ')],
     [e.evidence_state,e.evidence_state],[e.actor==='llm'?'Autoria: LLM':e.actor==='user'?'Autoria: pessoa':'Observação automática']],e.source_ref,e.occurred_at,eventIcons[e.kind]||'◦');
   element.querySelector('.event-time').append($create('span','',`Registrado: ${localDate(e.recorded_at)}`));
+  if (e.source_ref && (e.kind==='file_added'||e.kind==='file_changed'||/\.(md|tex|pdf|txt)$/i.test(e.source_ref))) {
+    const examBtn=$create('button','inline-button','Examinar texto');
+    examBtn.type='button';
+    examBtn.addEventListener('click',()=>inspectDocument(e.source_ref,e.project));
+    element.querySelector('.event-left > div:last-child').append(examBtn);
+  }
   target.append(element);
 }
 async function refreshEvents() {
@@ -177,40 +183,94 @@ async function refreshRoots(){
     for(const r of list)target.append(card(r.project,r.path,[[r.kind]],'','','⌁'));
   }
 }
+let currentInsightIndex=0, currentInsightsList=[];
+function displayInsight(idx){
+  if(!currentInsightsList.length)return;
+  idx=(idx+currentInsightsList.length)%currentInsightsList.length;
+  currentInsightIndex=idx;
+  const item=currentInsightsList[idx];
+  $('insightCounter').textContent=`${idx+1}/${currentInsightsList.length}`;
+  $('insightDocTitle').textContent=`${item.project} · ${item.document_path}`;
+  $('insightSummary').textContent=item.summary;
+  const gapsContainer=$('insightGapsList');
+  gapsContainer.replaceChildren();
+  const gaps=Array.isArray(item.gaps)?item.gaps:[];
+  if(gaps.length){
+    const ul=document.createElement('ul');
+    for(const gap of gaps){const li=document.createElement('li');li.textContent=gap;ul.appendChild(li);}
+    gapsContainer.appendChild(ul);
+    $('insightOpportunity').textContent=gaps[0];
+    $('btnAdoptGap').onclick=()=>{
+      openNote('todo');
+      const form=$('noteForm');
+      form.elements.project.value=item.project;
+      form.elements.title.value=gaps[0].slice(0,180);
+      form.elements.reference.value=`lac:event:${item.event_id}`;
+      form.elements.body.value=`Oportunidade identificada na análise autônoma de ${item.document_path}:\n\n${item.summary}`;
+    };
+  }else{
+    $('insightOpportunity').textContent='Síntese concluída sem lacunas críticas aparentes.';
+    $('btnAdoptGap').onclick=()=>openNote('note');
+  }
+  $('btnViewInsightDoc').onclick=()=>inspectDocument(item.document_path,item.project,item.summary);
+  $('insightModelBadge').textContent=item.model||'qwen2.5:7b';
+  $('insightTimeBadge').textContent=(item.created_at||'').slice(11,16);
+
+  const relContainer=$('insightRelationsContainer');
+  relContainer.replaceChildren();
+  const relations=Array.isArray(item.relations)?item.relations:[];
+  if(relations.length){
+    for(const rel of relations){
+      const row=$create('div','insight-rel-item');
+      row.append($create('strong','',`⚡ Proposta relacional (MPRR): ${item.project} ↔ ${rel.target_project}`));
+      row.append($create('span','',`— ${rel.label}`));
+      const adoptRelBtn=$create('button','preset-pill','Adotar relação');
+      adoptRelBtn.type='button';
+      adoptRelBtn.onclick=async()=>{
+        try{
+          await api('/api/relations',{from:item.project,to:rel.target_project,label:rel.label,state:'candidate'});
+          showNotice('Relação candidata registrada no histórico.');
+          await refresh();
+        }catch(e){showNotice(e.message,true);}
+      };
+      row.append(adoptRelBtn);
+      relContainer.append(row);
+    }
+  }
+}
+async function inspectDocument(filePath, project, insightSummary){
+  try{
+    showNotice('Lendo documento nas fontes autorizadas...');
+    const data=await api(`/api/documents/read?path=${encodeURIComponent(filePath)}`);
+    if(!data.ok){throw new Error(data.error||'Falha ao ler documento');}
+    $('docModalProject').textContent=project||'DOCUMENTO AUTORIZADO';
+    $('docModalFilename').textContent=data.filename;
+    $('docModalExt').textContent=data.ext;
+    $('docModalSize').textContent=`${data.bytes} bytes (${data.chars} caracteres)`;
+    $('docModalPath').textContent=data.path;
+    $('docModalHash').textContent=data.sha256;
+    $('docModalText').textContent=data.text;
+    if(insightSummary){
+      $('docModalInsightSection').hidden=false;
+      $('docModalInsightSummary').textContent=insightSummary;
+    }else{
+      $('docModalInsightSection').hidden=true;
+    }
+    $('docDialog').showModal();
+    $('notice').hidden=true;
+  }catch(e){
+    showNotice(e.message,true);
+  }
+}
 async function refreshInsights(){
   try{
     const list=await api('/api/assistant/insights');
     const card=$('autonomousInsightCard');
     if(!card)return;
-    if(!list||!list.length){card.hidden=true;return;}
-    const latest=list[0];
+    if(!list||!list.length){card.hidden=true;currentInsightsList=[];return;}
+    currentInsightsList=list;
     card.hidden=false;
-    $('insightDocTitle').textContent=`${latest.project} · ${latest.document_path}`;
-    $('insightSummary').textContent=latest.summary;
-    const gapsContainer=$('insightGapsList');
-    gapsContainer.replaceChildren();
-    const gaps=Array.isArray(latest.gaps)?latest.gaps:[];
-    if(gaps.length){
-      const ul=document.createElement('ul');
-      for(const gap of gaps){
-        const li=document.createElement('li');li.textContent=gap;ul.appendChild(li);
-      }
-      gapsContainer.appendChild(ul);
-      $('insightOpportunity').textContent=gaps[0];
-      $('btnAdoptGap').onclick=()=>{
-        openNote('todo');
-        const form=$('noteForm');
-        form.elements.project.value=latest.project;
-        form.elements.title.value=gaps[0].slice(0,180);
-        form.elements.reference.value=`lac:event:${latest.event_id}`;
-        form.elements.body.value=`Oportunidade identificada na análise autônoma de ${latest.document_path}:\n\n${latest.summary}`;
-      };
-    }else{
-      $('insightOpportunity').textContent='Síntese concluída sem lacunas críticas aparentes.';
-      $('btnAdoptGap').onclick=()=>openNote('note');
-    }
-    $('insightModelBadge').textContent=latest.model||'qwen2.5:7b';
-    $('insightTimeBadge').textContent=(latest.created_at||'').slice(11,16);
+    displayInsight(currentInsightIndex);
   }catch(e){}
 }
 async function refresh(){
@@ -411,6 +471,16 @@ $('btnCopyBriefing').addEventListener('click',async()=>{
     showNotice('Síntese copiada para a área de transferência em formato Markdown!');
   }catch(e){showNotice('Erro ao copiar: '+e.message,true);}
 });
+$('closeDoc')?.addEventListener('click',()=>$('docDialog').close());
+$('btnCloseDocBtn')?.addEventListener('click',()=>$('docDialog').close());
+$('btnCopyDocText')?.addEventListener('click',async()=>{
+  try{
+    await navigator.clipboard.writeText($('docModalText').textContent);
+    showNotice('Texto do documento copiado!');
+  }catch(e){showNotice('Erro ao copiar: '+e.message,true);}
+});
+$('btnPrevInsight')?.addEventListener('click',()=>displayInsight(currentInsightIndex-1));
+$('btnNextInsight')?.addEventListener('click',()=>displayInsight(currentInsightIndex+1));
 for(const [id,path] of [['noteForm','/api/notes'],['relationForm','/api/relations'],['rootForm','/api/roots']]){
   $(id).addEventListener('submit',async e=>{
     e.preventDefault();const form=e.currentTarget,values=Object.fromEntries(new FormData(form));

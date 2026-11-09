@@ -212,6 +212,16 @@ class Adapters:
                 'interpretation': 'Reported intervals; no AFK correction, project attribution or productivity inference. Overlaps may exist.',
                 'recorded_in_lac': False, 'queried_at': conf['last_query_at']}
 
+    def read_document(self, args):
+        doc_path = args.get('path', '').strip()
+        if not doc_path:
+            raise ValueError('Parâmetro path obrigatório')
+        roots_str = args.get('roots', '').strip()
+        roots = [r for r in roots_str.split('|') if r] if roots_str else None
+
+        from lac_doc_reader import read_document as do_read_doc
+        return do_read_doc(doc_path, authorized_roots=roots)
+
     def dispatch(self, action, args):
         if action == 'status':
             return self.status()
@@ -221,6 +231,8 @@ class Adapters:
             return self.search(args)
         if action == 'activity':
             return self.activity(args)
+        if action == 'read_document':
+            return self.read_document(args)
         raise ValueError('Unknown integration action')
 
 

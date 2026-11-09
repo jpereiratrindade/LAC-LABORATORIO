@@ -59,6 +59,17 @@ class DocReaderTests(unittest.TestCase):
         self.assertFalse(res['ok'])
         self.assertIn('não encontrado', res['error'])
 
+    def test_integration_adapter_read_document(self):
+        from lac_integrations import Adapters
+        sample = self.root / 'artigo.tex'
+        sample.write_text('\\section{Introducao}\nTexto cientifico.\n', encoding='utf-8')
+        config_file = self.root / 'integrations.json'
+        adapter = Adapters(config_file)
+        res = adapter.dispatch('read_document', {'path': str(sample), 'roots': str(self.root)})
+        self.assertTrue(res['ok'])
+        self.assertEqual('artigo.tex', res['filename'])
+        self.assertIn('Texto cientifico', res['text'])
+
 
 if __name__ == '__main__':
     unittest.main()

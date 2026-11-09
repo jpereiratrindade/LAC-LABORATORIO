@@ -40,9 +40,10 @@ class ContinuityWorkerTests(unittest.TestCase):
             CREATE TABLE continuity_insights(
                 id INTEGER PRIMARY KEY AUTOINCREMENT, job_id INTEGER, event_id INTEGER,
                 project_id INTEGER, document_path TEXT, summary TEXT, gaps_json TEXT,
-                model TEXT, created_at TEXT, event_hash TEXT
+                model TEXT, created_at TEXT, event_hash TEXT, relations_json TEXT DEFAULT '[]'
             );
             INSERT INTO projects VALUES(1, 'TESSITURA', '2026-11-09T00:00:00Z');
+            INSERT INTO projects VALUES(2, 'EVIDA', '2026-11-09T00:00:00Z');
         """)
         
         # Create an authorized doc root
@@ -98,11 +99,12 @@ class ContinuityWorkerTests(unittest.TestCase):
         self.assertEqual('completed', job[0])
         self.assertEqual(1, job[1])
         
-        insight = cur.execute("SELECT summary, gaps_json, model, event_hash FROM continuity_insights WHERE job_id = 1").fetchone()
+        insight = cur.execute("SELECT summary, gaps_json, model, event_hash, relations_json FROM continuity_insights WHERE job_id = 1").fetchone()
         self.assertIn('grafo argumentativo', insight[0])
         self.assertIn('Faltam evidências', insight[1])
         self.assertEqual('test-model', insight[2])
         self.assertEqual('hash12345', insight[3])
+        self.assertIsNotNone(insight[4])
         conn.close()
 
     @patch('subprocess.run')

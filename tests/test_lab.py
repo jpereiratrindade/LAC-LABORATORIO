@@ -15,7 +15,7 @@ import tempfile
 import time
 import unittest
 from smtp_fixture import MailSink
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 BINARY = str(Path(sys.argv[1]).resolve()) if len(sys.argv) > 1 else 'lac'
 WEBROOT = Path(__file__).resolve().parent.parent / 'web'
@@ -118,6 +118,17 @@ class LabTests(unittest.TestCase):
         self.assertIn('fundamentos.md',self.req('/api/report?from=2000-01-01&to=2100-01-01')[1])
         self.assertIn('Continu', self.req('/')[1])
         self.assertIn('const api', self.req('/app.js')[1])
+        # Test /api/documents/read
+        active_doc = self.docs / 'ativo.md'
+        active_doc.write_text('# Documento ativo\nConteudo restrito e delimitado.\n', encoding='utf-8')
+        doc_status, doc_data = self.req('/api/documents/read?path=' + quote(str(active_doc)))
+        self.assertEqual(200, doc_status)
+        self.assertTrue(doc_data['ok'])
+        self.assertEqual('ativo.md', doc_data['filename'])
+        self.assertIn('Conteudo restrito e delimitado', doc_data['text'])
+        # Reject unauthorized path outside registered roots
+        outside_status, outside_data = self.req('/api/documents/read?path=/tmp/outside.md')
+        self.assertFalse(outside_data.get('ok', False))
 
     def test_git_commits_replay_and_history(self):
         subprocess.run(['git','init', '-q', str(self.git)],check=True)
