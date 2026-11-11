@@ -149,3 +149,13 @@ inserir o hash do próprio commit dentro dele.
 > Confira Git e estado real. Próximo backend: T03. A prévia T02 aguarda
 > avaliação visual humana. Preserve histórico e autenticação; atualize a
 > passagem de contexto antes de concluir ou interromper.
+
+## Padronização visual — 2026-11-11
+
+Premissas “Simples, leve. Sempre pronto. Sempre incompleto!” incluídas na
+interface operacional e documentadas em `docs/sister-principles/README.md`.
+Ícones SVG inline acompanham rótulos textuais e não indicam estado do serviço.
+Arquivos: `web/index.html`, `README.md`, `docs/sister-principles/*`.
+Verificação desta entrega: inspeção de HTML/SVG e `git diff --check`; nenhuma
+validação científica ou mudança nos estados de T00–T12 decorre desta alteração.
+Próximo passo: conferir a apresentação na interface em execução após implantação.

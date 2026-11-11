@@ -131,3 +131,9 @@ Detalhes técnicos, limites de varredura, âncoras de integridade e execução p
 **v0.1.4**, em Fedora 44 / GCC 16: testes de CLI/API/MCP, autenticação institucional, SMTP TLS simulado e verificações do painel. O LAC também possui entrada opcional em **Outros sistemas** no sister-synth, condicionada à observação e ao destino autorizado. Adaptadores Recoll/ActivityWatch foram testados com serviços simulados; índices, extratores e coletores reais precisam de validação no ambiente de uso. Veja o [changelog](CHANGELOG.md).
 
 Copyright (C) 2026 José Pedro Trindade. Licenciado sob **GNU GPL v3.0 (GPL-3.0-only)**. Texto completo em [LICENSE](LICENSE).
+
+## Premissas de desenvolvimento
+
+**Simples, leve. Sempre pronto. Sempre incompleto!**
+
+[Significado e símbolos das premissas](docs/sister-principles/README.md).
